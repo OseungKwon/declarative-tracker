@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>declarative-tracker · vanilla</title>
+    <style>
+      body {
+        font-family: system-ui, sans-serif;
+        margin: 0;
+        padding: 0 1rem 40vh;
+      }
+      section {
+        padding: 2rem 0;
+        border-bottom: 1px solid #ddd;
+      }
+      .hero {
+        min-height: 60vh;
+        display: grid;
+        place-items: center;
+        background: #f4f4f5;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+      }
+      .grid button {
+        padding: 2rem 1rem;
+      }
+      .spacer {
+        height: 120vh;
+        display: grid;
+        place-items: center;
+        color: #888;
+      }
+      #log {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        width: 26rem;
+        max-height: 40vh;
+        overflow: auto;
+        margin: 0;
+        padding: 0.75rem;
+        background: #111;
+        color: #9ae6b4;
+        font-size: 12px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- 문서 전체 스크롤 깊이 -->
+    <div data-track="page-scroll">
+      <!-- impression: 1초 이상 보이면 1회 -->
+      <section class="hero" data-track="hero-view" data-track-variant="a">
+        <h1>Scroll down and click around</h1>
+      </section>
+
+      <!-- 조상 ctx: 아래 모든 이벤트의 params에 list=featured 가 들어간다 -->
+      <section data-track-ctx-list="featured">
+        <h2>Featured</h2>
+        <div class="grid">
+          <button data-track="product-click" data-track-product-id="p1" data-track-position="1">
+            Product 1
+          </button>
+          <button data-track="product-click" data-track-product-id="p2" data-track-position="2">
+            Product 2
+          </button>
+          <button data-track="product-click" data-track-product-id="p3" data-track-position="3">
+            Product 3
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <h2>Newsletter</h2>
+        <form id="newsletter">
+          <select name="plan">
+            <option value="free">Free</option>
+            <option value="pro">Pro</option>
+          </select>
+          <button type="submit">Subscribe</button>
+        </form>
+      </section>
+
+      <div class="spacer">keep scrolling…</div>
+    </div>
+
+    <pre id="log"></pre>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
