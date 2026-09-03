@@ -58,6 +58,16 @@
         "default": "./dist/dom.cjs"
       }
     },
+    "./react": {
+      "import": {
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
+      },
+      "require": {
+        "types": "./dist/react.d.cts",
+        "default": "./dist/react.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",
@@ -67,6 +77,9 @@
     "*": {
       "dom": [
         "./dist/dom.d.ts"
+      ],
+      "react": [
+        "./dist/react.d.ts"
       ]
     }
   },
@@ -85,15 +98,28 @@
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "prepublishOnly": "pnpm build && pnpm validate"
   },
+  "peerDependencies": {
+    "react": "^18.2.0 || ^19.0.0"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@eslint/js": "^10.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
     "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^10.9.1",
     "eslint-config-prettier": "^10.1.8",
     "jsdom": "^30.0.1",
     "prettier": "^3.9.6",
     "publint": "^0.3.24",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "tsdown": "^0.22.14",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.69.0",
