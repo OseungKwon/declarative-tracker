@@ -48,11 +48,28 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./dom": {
+      "import": {
+        "types": "./dist/dom.d.ts",
+        "default": "./dist/dom.js"
+      },
+      "require": {
+        "types": "./dist/dom.d.cts",
+        "default": "./dist/dom.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "dom": [
+        "./dist/dom.d.ts"
+      ]
+    }
+  },
   "scripts": {
     "build": "tsdown",
     "dev": "tsdown --watch",
