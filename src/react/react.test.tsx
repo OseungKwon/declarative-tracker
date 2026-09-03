@@ -7,6 +7,7 @@ import type { TrackingEvent } from '../core/types';
 import { trackAttrs } from '../dom/attrs';
 import { createTrackingHooks, useFire, useTracker } from './hooks';
 import { TrackingProvider } from './provider';
+import { useTrackProps } from './track-props';
 
 const events = defineEvents({
   'banner-click': {
@@ -153,5 +154,47 @@ describe('createTrackingHooks', () => {
     result.current.fire('ping');
     result.current.fireBanner({ id: 'y' });
     expect(send).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('useTrackProps', () => {
+  it('data-track 속성과 ref를 만들고 params는 최신 값을 읽는다', async () => {
+    const { tracker, send } = makeTracker();
+    function Button({ id }: { id: string }) {
+      return (
+        <button {...useTrackProps<typeof events, 'banner-click'>('banner-click', { id })}>
+          go
+        </button>
+      );
+    }
+    const { getByText, rerender } = render(
+      <TrackingProvider tracker={tracker}>
+        <Button id="first" />
+      </TrackingProvider>,
+    );
+    await flush();
+
+    const button = getByText('go');
+    expect(button.getAttribute('data-track')).toBe('banner-click');
+    expect(button.getAttribute('data-track-params')).toBeNull();
+
+    rerender(
+      <TrackingProvider tracker={tracker}>
+        <Button id="second" />
+      </TrackingProvider>,
+    );
+    button.click();
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledWith(
+      { id: 'second' },
+      expect.objectContaining({ trigger: 'click' }),
+    );
+  });
+
+  it('prefix를 바꿀 수 있다', () => {
+    const { result } = renderHook(() => useTrackProps('k', undefined, 'data-analytics'));
+    expect(result.current['data-analytics']).toBe('k');
+    expect(typeof result.current.ref).toBe('function');
   });
 });

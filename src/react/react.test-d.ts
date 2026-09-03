@@ -23,7 +23,7 @@ describe('useFire', () => {
 });
 
 describe('createTrackingHooks', () => {
-  const { useFire: useAppFire } = createTrackingHooks<M>();
+  const { useFire: useAppFire, useTrackProps: useAppTrackProps } = createTrackingHooks<M>();
 
   it('호출할 때 제네릭 없이 키와 params를 검사한다', () => {
     const fire = useAppFire();
@@ -37,5 +37,14 @@ describe('createTrackingHooks', () => {
     expectTypeOf(fireBanner).parameter(0).toEqualTypeOf<{ id: string }>();
     // @ts-expect-error 등록되지 않은 키는 받지 않는다
     useAppFire('nope');
+  });
+
+  it('useTrackProps도 키와 params를 검사한다', () => {
+    useAppTrackProps('banner-click', { id: 'x' });
+    useAppTrackProps('ping');
+    // @ts-expect-error 선언하지 않은 params 키다
+    useAppTrackProps('banner-click', { nope: 1 });
+    // @ts-expect-error 등록되지 않은 키는 받지 않는다
+    useAppTrackProps('nope');
   });
 });

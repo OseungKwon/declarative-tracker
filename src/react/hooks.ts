@@ -3,6 +3,7 @@ import { useCallback, useContext } from 'react';
 import type { FireArgs, Tracker } from '../core/tracker';
 import type { EventKeys, EventMap, EventParams } from '../core/types';
 import { TrackerContext } from './provider';
+import { type TrackProps, useTrackProps } from './track-props';
 
 export type FireKey<M extends EventMap, K extends EventKeys<M>> = (
   ...args: FireArgs<EventParams<M, K>>
@@ -37,6 +38,11 @@ export interface TrackingHooks<M extends EventMap> {
     (): Tracker<M>['fire'];
     <K extends EventKeys<M>>(key: K): FireKey<M, K>;
   };
+  useTrackProps: <K extends EventKeys<M>>(
+    key: K,
+    params?: EventParams<M, K>,
+    prefix?: string,
+  ) => TrackProps;
 }
 
 /** 이벤트 맵 타입을 고정한 훅을 만든다. 호출할 때마다 제네릭을 쓰지 않아도 된다. */
@@ -45,5 +51,6 @@ export function createTrackingHooks<M extends EventMap>(): TrackingHooks<M> {
     useTracker: () => useTracker<M>(),
     useFire: (<K extends EventKeys<M>>(key?: K) =>
       key === undefined ? useFire<M>() : useFire<M, K>(key)) as TrackingHooks<M>['useFire'],
+    useTrackProps: (key, params, prefix) => useTrackProps<M, typeof key>(key, params, prefix),
   };
 }
