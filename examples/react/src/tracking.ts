@@ -12,4 +12,4 @@ export const tracker = createTracker({
 });
 
 // 맵 타입이 고정된 훅. 컴포넌트에서 제네릭 없이 쓴다
-export const { useFire } = createTrackingHooks<typeof events>();
+export const { useFire, useTrackProps } = createTrackingHooks<typeof events>();
