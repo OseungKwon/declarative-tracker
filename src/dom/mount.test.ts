@@ -51,6 +51,16 @@ afterEach(() => {
 });
 
 describe('mount', () => {
+  it('triggers를 주지 않으면 내장 트리거 4개를 쓴다', () => {
+    document.body.innerHTML = `<button data-track="banner-click"></button>`;
+    const send = vi.fn();
+    unmount = mount(createTracker({ events, adapters: [{ name: 'log', send }] }));
+
+    document.querySelector('button')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+    expect(send).toHaveBeenCalledOnce();
+  });
+
   it('document가 없으면 아무것도 하지 않는다', () => {
     vi.stubGlobal('document', undefined);
     const tracker = createTracker({ events });
@@ -102,7 +112,7 @@ describe('mount', () => {
       <div data-track="hero-view"></div>
       <div data-track="hero-view"></div>`;
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    unmount = mount(createTracker({ events, debug: true }));
+    unmount = mount(createTracker({ events, debug: true }), { triggers: [] });
 
     expect(warn).toHaveBeenCalledOnce();
     expect(warn.mock.calls[0]?.[0]).toContain('"impression"');

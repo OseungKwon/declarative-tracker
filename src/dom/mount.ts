@@ -2,6 +2,7 @@ import type { Tracker } from '../core/tracker';
 import type { EventDefinition, Params, TriggerName } from '../core/types';
 import { DEFAULT_PREFIX, resolveElement } from './resolve';
 import type { Trigger, TriggerInstance } from './trigger';
+import { defaultTriggers } from './triggers';
 
 export interface MountOptions {
   root?: Element;
@@ -17,7 +18,7 @@ const noop: Unmount = () => undefined;
 export function mount(tracker: Tracker, options: MountOptions = {}): Unmount {
   if (typeof document === 'undefined') return noop;
 
-  const { root = document.body, prefix = DEFAULT_PREFIX, triggers = [] } = options;
+  const { root = document.body, prefix = DEFAULT_PREFIX, triggers = defaultTriggers() } = options;
   const { events, logger } = tracker;
   const selector = `[${prefix}]`;
   const warn = (message: string) => {

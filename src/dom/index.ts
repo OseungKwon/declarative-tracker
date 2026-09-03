@@ -4,7 +4,10 @@ export { DEFAULT_PREFIX, resolveElement } from './resolve';
 export type { ResolveOptions, ResolvedElement } from './resolve';
 export { defineTrigger } from './trigger';
 export type { Trigger, TriggerContext, TriggerInstance } from './trigger';
-export { clickTrigger } from './triggers/click';
-export { mountTrigger } from './triggers/mount';
-export { impressionTrigger } from './triggers/impression';
-export { scrollDepthTrigger } from './triggers/scroll-depth';
+export {
+  clickTrigger,
+  defaultTriggers,
+  impressionTrigger,
+  mountTrigger,
+  scrollDepthTrigger,
+} from './triggers';
