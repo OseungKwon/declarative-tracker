@@ -10,6 +10,8 @@ import type {
   TriggerName,
 } from './types';
 
+export type Middleware = (event: TrackingEvent, next: (event: TrackingEvent) => void) => void;
+
 export type ErrorPhase = 'setup' | 'resolve' | 'send' | 'flush' | 'teardown';
 
 export interface ErrorInfo {
@@ -24,6 +26,7 @@ export interface TrackerOptions<M extends EventMap> {
   events: M;
   adapters?: Adapter[];
   context?: TrackingContext;
+  middleware?: Middleware[];
   onError?: ErrorHandler;
   debug?: boolean;
 }
@@ -60,7 +63,7 @@ interface AdapterRecord {
 
 /** 이벤트 맵과 어댑터로 트래커를 만든다. */
 export function createTracker<M extends EventMap>(options: TrackerOptions<M>): Tracker<M> {
-  const { events, adapters = [], debug = false } = options;
+  const { events, adapters = [], middleware = [], debug = false } = options;
   const log = createLogger(debug);
   const onError: ErrorHandler =
     options.onError ??
@@ -132,6 +135,13 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
     }
   }
 
+  const pipeline = middleware.reduceRight<(event: TrackingEvent) => void>(
+    (next, layer) => (event) => {
+      layer(event, next);
+    },
+    dispatch,
+  );
+
   /** 이벤트를 만들어 파이프라인에 태운다. */
   function fire(key: string, params?: Params, meta?: FireMeta): void {
     if (destroyed) {
@@ -152,7 +162,7 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
     };
     if (meta?.element) event.element = meta.element;
 
-    dispatch(event);
+    pipeline(event);
   }
 
   return {

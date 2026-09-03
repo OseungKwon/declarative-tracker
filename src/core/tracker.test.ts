@@ -159,6 +159,41 @@ describe('createTracker', () => {
     });
   });
 
+  describe('middleware', () => {
+    it('순서대로 실행되고 이벤트를 바꿀 수 있다', () => {
+      const ga4 = mockAdapter('ga4');
+      const order: string[] = [];
+      const tracker = createTracker({
+        events,
+        adapters: [ga4],
+        middleware: [
+          (event, next) => {
+            order.push('first');
+            next({ ...event, context: { ...event.context, first: true } });
+          },
+          (event, next) => {
+            order.push('second');
+            next(event);
+          },
+        ],
+      });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+
+      expect(order).toEqual(['first', 'second']);
+      expect(ga4.send.mock.calls[0]?.[1].context).toEqual({ first: true });
+    });
+
+    it('next를 부르지 않으면 이벤트를 버린다', () => {
+      const ga4 = mockAdapter('ga4');
+      const tracker = createTracker({ events, adapters: [ga4], middleware: [() => undefined] });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+
+      expect(ga4.send).not.toHaveBeenCalled();
+    });
+  });
+
   describe('어댑터 on/off', () => {
     it('꺼진 어댑터는 건너뛰고 다시 켜면 보낸다', () => {
       const ga4 = mockAdapter('ga4');

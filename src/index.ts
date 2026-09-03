@@ -8,6 +8,7 @@ export type {
   ErrorPhase,
   FireArgs,
   FireMeta,
+  Middleware,
   Tracker,
   TrackerOptions,
 } from './core/tracker';
