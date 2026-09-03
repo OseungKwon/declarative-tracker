@@ -1,3 +1,5 @@
+export { trackAttrs } from './attrs';
+export type { TrackAttrs } from './attrs';
 export { mount } from './mount';
 export type { MountOptions, Unmount } from './mount';
 export { DEFAULT_PREFIX, resolveElement } from './resolve';
