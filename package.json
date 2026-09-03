@@ -1,0 +1,85 @@
+{
+  "name": "declarative-tracker",
+  "version": "0.0.0",
+  "description": "Declarative, type-safe event tracking with data-track attributes. One tag, any analytics — GA4, AppsFlyer, Amplitude, or your own adapter. Zero dependencies.",
+  "keywords": [
+    "analytics",
+    "tracking",
+    "event-tracking",
+    "declarative",
+    "data-attributes",
+    "typescript",
+    "ga4",
+    "google-analytics",
+    "appsflyer",
+    "amplitude",
+    "impression-tracking",
+    "intersection-observer"
+  ],
+  "license": "MIT",
+  "author": "OseungKwon",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oseungkwon/declarative-tracker.git"
+  },
+  "homepage": "https://github.com/oseungkwon/declarative-tracker#readme",
+  "bugs": {
+    "url": "https://github.com/oseungkwon/declarative-tracker/issues"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@11.5.3",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "validate": "publint && attw --pack",
+    "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
+    "prepublishOnly": "pnpm build && pnpm validate"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@eslint/js": "^10.0.1",
+    "@vitest/coverage-v8": "^5.0.0",
+    "eslint": "^10.9.1",
+    "eslint-config-prettier": "^10.1.8",
+    "jsdom": "^30.0.1",
+    "prettier": "^3.9.6",
+    "publint": "^0.3.24",
+    "tsdown": "^0.22.14",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.69.0",
+    "vitest": "^5.0.0"
+  }
+}
