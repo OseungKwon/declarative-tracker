@@ -30,9 +30,16 @@ class FakeIO {
     instances.push(this);
   }
 
-  /** 요소가 보이거나 사라진 것으로 콜백을 부른다. */
-  see(el: Element, isIntersecting = true) {
-    this.callback([{ target: el, isIntersecting } as IntersectionObserverEntry]);
+  /** 요소가 보이거나 사라진 것으로 콜백을 부른다. 기본은 뷰포트 1000px, 요소 100px */
+  see(el: Element, isIntersecting = true, { height = 100, rootHeight = 1000 } = {}) {
+    this.callback([
+      {
+        target: el,
+        isIntersecting,
+        boundingClientRect: { height } as DOMRectReadOnly,
+        rootBounds: { height: rootHeight } as DOMRectReadOnly,
+      } as IntersectionObserverEntry,
+    ]);
   }
 }
 
@@ -140,6 +147,33 @@ describe('impressionTrigger', () => {
 
     expect(instances[0]?.unobserve).toHaveBeenCalledWith(el);
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('뷰포트보다 큰 요소는 뷰포트를 threshold만큼 채우는 비율로 다시 관찰한다', () => {
+    setup(`<div data-track="hero"></div>`);
+    const el = document.querySelector('div');
+    if (!el) throw new Error('no el');
+
+    instances[0]?.see(el, false, { height: 2000, rootHeight: 1000 });
+
+    expect(instances[0]?.unobserve).toHaveBeenCalledWith(el);
+    expect(instances).toHaveLength(2);
+    expect(instances[1]?.options).toEqual({ threshold: 0.25, rootMargin: '0px' });
+    expect(instances[1]?.observe).toHaveBeenCalledWith(el);
+
+    instances[1]?.see(el, true, { height: 2000, rootHeight: 1000 });
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it('뷰포트보다 작은 요소는 그대로 관찰한다', () => {
+    setup(`<div data-track="hero"></div>`);
+    const el = document.querySelector('div');
+    if (!el) throw new Error('no el');
+
+    instances[0]?.see(el, false, { height: 800, rootHeight: 1000 });
+
+    expect(instances).toHaveLength(1);
+    expect(instances[0]?.unobserve).not.toHaveBeenCalled();
   });
 
   it('unmount하면 observer를 모두 끊는다', async () => {

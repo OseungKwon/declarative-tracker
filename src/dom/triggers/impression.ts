@@ -5,7 +5,18 @@ const DEFAULT_ROOT_MARGIN = '0px';
 
 interface Watched {
   observer: IntersectionObserver;
+  threshold: number;
+  rootMargin: string;
   minVisibleMs: number;
+  adjusted: boolean;
+}
+
+/** 뷰포트보다 큰 요소는 threshold에 닿을 수 없으므로 "뷰포트의 threshold만큼 채움"으로 바꿔 계산한다. */
+function neededRatio(entry: IntersectionObserverEntry, threshold: number): number {
+  const rootHeight = entry.rootBounds?.height;
+  const height = entry.boundingClientRect.height;
+  if (!rootHeight || height <= rootHeight) return threshold;
+  return Math.max(0.01, Math.round(((rootHeight * threshold) / height) * 100) / 100);
 }
 
 /** 요소가 뷰포트에 threshold 이상, minVisibleMs 이상 보이면 한 번 발화한다. */
@@ -34,9 +45,20 @@ export function impressionTrigger() {
       };
 
       const onIntersect = (entries: IntersectionObserverEntry[]) => {
-        for (const { target, isIntersecting } of entries) {
+        for (const entry of entries) {
+          const { target, isIntersecting } = entry;
           const state = watched.get(target);
           if (!state) continue;
+          if (!state.adjusted) {
+            state.adjusted = true;
+            const needed = neededRatio(entry, state.threshold);
+            if (needed < state.threshold) {
+              state.observer.unobserve(target);
+              state.observer = getObserver(needed, state.rootMargin);
+              state.observer.observe(target);
+              continue;
+            }
+          }
           if (!isIntersecting) {
             cancelTimer(target);
             continue;
@@ -67,11 +89,16 @@ export function impressionTrigger() {
 
       return {
         attach(el, options) {
-          const observer = getObserver(
-            options?.threshold ?? DEFAULT_THRESHOLD,
-            options?.rootMargin ?? DEFAULT_ROOT_MARGIN,
-          );
-          watched.set(el, { observer, minVisibleMs: options?.minVisibleMs ?? 0 });
+          const threshold = options?.threshold ?? DEFAULT_THRESHOLD;
+          const rootMargin = options?.rootMargin ?? DEFAULT_ROOT_MARGIN;
+          const observer = getObserver(threshold, rootMargin);
+          watched.set(el, {
+            observer,
+            threshold,
+            rootMargin,
+            minVisibleMs: options?.minVisibleMs ?? 0,
+            adjusted: false,
+          });
           observer.observe(el);
         },
         detach(el) {
