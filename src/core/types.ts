@@ -24,6 +24,7 @@ export interface ImpressionOptions {
 
 export interface ScrollDepthOptions {
   milestones: number[];
+  container?: string;
 }
 
 export interface TrackingEvent<P extends Params = Params> {

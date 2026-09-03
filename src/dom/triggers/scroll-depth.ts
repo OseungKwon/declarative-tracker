@@ -1,48 +1,58 @@
 import { defineTrigger } from '../trigger';
 
 type DepthListener = (depth: number) => void;
+type ScrollTarget = Window | Element;
 
-const listeners = new Set<DepthListener>();
-let rafId = 0;
-let listening = false;
+interface Source {
+  listeners: Set<DepthListener>;
+  rafId: number;
+  schedule: () => void;
+}
 
-/** 문서 전체 기준 스크롤 깊이(0~1). 스크롤할 수 없으면 1이다. */
-function documentScrollDepth(): number {
-  const root = document.documentElement;
-  const scrollable = Math.max(0, root.scrollHeight - window.innerHeight);
-  if (scrollable === 0) return 1;
-  const scrollTop = window.scrollY;
+const sources = new Map<ScrollTarget, Source>();
+
+/** 스크롤 깊이(0~1). 스크롤할 수 없으면 1이다. */
+function depthOf(target: ScrollTarget): number {
+  const isElement = target instanceof Element;
+  const scrollable = isElement
+    ? target.scrollHeight - target.clientHeight
+    : document.documentElement.scrollHeight - window.innerHeight;
+  if (scrollable <= 0) return 1;
+  const scrollTop = isElement ? target.scrollTop : window.scrollY;
   if (scrollable - scrollTop <= 2) return 1;
   return Math.min(1, Math.max(0, scrollTop / scrollable));
 }
 
-/** 다음 프레임에 깊이를 한 번만 계산해 구독자에게 알린다. */
-function schedule(): void {
-  if (rafId) return;
-  rafId = requestAnimationFrame(() => {
-    rafId = 0;
-    const depth = documentScrollDepth();
-    for (const listener of listeners) listener(depth);
-  });
-}
-
-/** scroll/resize 리스너는 모듈 전체에서 한 쌍만 둔다. */
-function subscribe(listener: DepthListener): () => void {
-  listeners.add(listener);
-  if (!listening) {
-    listening = true;
-    window.addEventListener('scroll', schedule, { passive: true });
-    window.addEventListener('resize', schedule);
+/** 같은 스크롤 대상에는 리스너 한 쌍만 붙이고, 프레임당 한 번 깊이를 계산해 알린다. */
+function subscribe(target: ScrollTarget, listener: DepthListener): () => void {
+  let source = sources.get(target);
+  if (!source) {
+    const created: Source = {
+      listeners: new Set(),
+      rafId: 0,
+      schedule: () => {
+        if (created.rafId) return;
+        created.rafId = requestAnimationFrame(() => {
+          created.rafId = 0;
+          const depth = depthOf(target);
+          for (const l of created.listeners) l(depth);
+        });
+      },
+    };
+    target.addEventListener('scroll', created.schedule, { passive: true });
+    if (!(target instanceof Element)) target.addEventListener('resize', created.schedule);
+    sources.set(target, created);
+    source = created;
   }
-  schedule();
+  source.listeners.add(listener);
+  source.schedule();
+
   return () => {
-    listeners.delete(listener);
-    if (listeners.size > 0 || !listening) return;
-    listening = false;
-    window.removeEventListener('scroll', schedule);
-    window.removeEventListener('resize', schedule);
-    cancelAnimationFrame(rafId);
-    rafId = 0;
+    if (!source.listeners.delete(listener) || source.listeners.size > 0) return;
+    target.removeEventListener('scroll', source.schedule);
+    if (!(target instanceof Element)) target.removeEventListener('resize', source.schedule);
+    cancelAnimationFrame(source.rafId);
+    sources.delete(target);
   };
 }
 
@@ -51,34 +61,16 @@ function normalizeMilestones(milestones: number[]): number[] {
   return [...new Set(milestones.map((m) => Math.min(1, Math.max(0, m))))].sort((a, b) => a - b);
 }
 
-interface Registration {
-  milestones: number[];
-  fired: Set<number>;
-}
-
-/** 문서 스크롤 깊이가 각 milestone을 넘을 때마다 한 번씩 발화한다. */
+/** 스크롤 깊이가 각 milestone을 넘을 때마다 한 번씩 발화한다. 기본은 문서, container로 스크롤 요소를 지정할 수 있다. */
 export function scrollDepthTrigger() {
   return defineTrigger({
     name: 'scroll-depth',
     setup({ fire, logger }) {
-      const registrations = new Map<Element, Registration>();
-      let unsubscribe: (() => void) | undefined;
+      const unsubscribes = new Map<Element, () => void>();
 
-      const onDepth = (depth: number) => {
-        for (const [el, registration] of registrations) {
-          for (const milestone of registration.milestones) {
-            if (registration.fired.has(milestone) || depth < milestone) continue;
-            registration.fired.add(milestone);
-            fire(el, { scrollDepth: milestone, scrollDepthPercent: Math.round(milestone * 100) });
-          }
-          if (registration.fired.size === registration.milestones.length) registrations.delete(el);
-        }
-        if (registrations.size === 0) stop();
-      };
-
-      const stop = () => {
-        unsubscribe?.();
-        unsubscribe = undefined;
+      const stop = (el: Element) => {
+        unsubscribes.get(el)?.();
+        unsubscribes.delete(el);
       };
 
       return {
@@ -88,16 +80,27 @@ export function scrollDepthTrigger() {
             logger.warn('scroll-depth needs at least one milestone');
             return;
           }
-          registrations.set(el, { milestones, fired: new Set() });
-          unsubscribe ??= subscribe(onDepth);
+          const target = options?.container ? document.querySelector(options.container) : window;
+          if (!target) {
+            logger.warn(`scroll-depth container not found: ${options?.container ?? ''}`);
+            return;
+          }
+
+          const fired = new Set<number>();
+          const unsubscribe = subscribe(target, (depth) => {
+            for (const milestone of milestones) {
+              if (fired.has(milestone) || depth < milestone) continue;
+              fired.add(milestone);
+              fire(el, { scrollDepth: milestone, scrollDepthPercent: Math.round(milestone * 100) });
+            }
+            if (fired.size === milestones.length) stop(el);
+          });
+          unsubscribes.set(el, unsubscribe);
         },
-        detach(el) {
-          registrations.delete(el);
-          if (registrations.size === 0) stop();
-        },
+        detach: stop,
         destroy() {
-          registrations.clear();
-          stop();
+          for (const unsubscribe of unsubscribes.values()) unsubscribe();
+          unsubscribes.clear();
         },
       };
     },

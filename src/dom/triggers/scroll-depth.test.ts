@@ -18,6 +18,16 @@ const events = defineEvents({
     targets: { log: (e) => e.params },
   },
   empty: { trigger: 'scroll-depth', options: { milestones: [] }, targets: { log: 1 } },
+  feed: {
+    trigger: 'scroll-depth',
+    options: { milestones: [0.5, 1], container: '#feed' },
+    targets: { log: (e) => e.params },
+  },
+  missing: {
+    trigger: 'scroll-depth',
+    options: { milestones: [1], container: '#nope' },
+    targets: { log: 1 },
+  },
 });
 
 type Send = (payload: unknown, event: TrackingEvent) => void;
@@ -164,6 +174,55 @@ describe('scrollDepthTrigger', () => {
     scrollTo(3000);
 
     expect(depths()).toEqual([0.25]);
+  });
+
+  describe('container', () => {
+    /** 스크롤 요소를 만들어 높이·위치를 흉내 낸다. */
+    function makeFeed(scrollTop = 0) {
+      const feed = document.createElement('div');
+      feed.id = 'feed';
+      Object.defineProperty(feed, 'scrollHeight', { configurable: true, value: 2000 });
+      Object.defineProperty(feed, 'clientHeight', { configurable: true, value: 1000 });
+      Object.defineProperty(feed, 'scrollTop', {
+        configurable: true,
+        value: scrollTop,
+        writable: true,
+      });
+      return feed;
+    }
+
+    it('지정한 요소의 스크롤 깊이를 본다', () => {
+      const add = vi.spyOn(window, 'addEventListener');
+      document.body.innerHTML = '';
+      const feed = makeFeed();
+      feed.innerHTML = `<div data-track="feed"></div>`;
+      document.body.append(feed);
+      send = vi.fn<Send>();
+      unmount = mount(createTracker({ events, adapters: [{ name: 'log', send }] }), {
+        triggers: [scrollDepthTrigger()],
+      });
+      vi.advanceTimersByTime(16);
+      expect(send).not.toHaveBeenCalled();
+      expect(add.mock.calls.filter(([type]) => type === 'scroll')).toHaveLength(0);
+
+      feed.scrollTop = 500;
+      feed.dispatchEvent(new Event('scroll'));
+      vi.advanceTimersByTime(16);
+      expect(depths()).toEqual([0.5]);
+
+      feed.scrollTop = 1000;
+      feed.dispatchEvent(new Event('scroll'));
+      vi.advanceTimersByTime(16);
+      expect(depths()).toEqual([0.5, 1]);
+    });
+
+    it('요소가 없으면 경고하고 붙이지 않는다', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      setup(`<div data-track="missing"></div>`, true);
+
+      expect(send).not.toHaveBeenCalled();
+      expect(warn.mock.calls[0]?.[0]).toContain('#nope');
+    });
   });
 
   it('unmount하면 리스너를 뗀다', () => {
