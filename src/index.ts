@@ -1,5 +1,6 @@
 export type { Adapter } from './core/adapter';
 export { defineEvent, defineEvents } from './core/define';
+export type { Logger } from './core/logger';
 export type {
   EventDefinition,
   EventDefinitionInput,
