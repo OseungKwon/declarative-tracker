@@ -7,3 +7,4 @@ export type { Trigger, TriggerContext, TriggerInstance } from './trigger';
 export { clickTrigger } from './triggers/click';
 export { mountTrigger } from './triggers/mount';
 export { impressionTrigger } from './triggers/impression';
+export { scrollDepthTrigger } from './triggers/scroll-depth';
