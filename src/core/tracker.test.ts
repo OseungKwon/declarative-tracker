@@ -1,0 +1,320 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { Adapter } from './adapter';
+import { defineEvents } from './define';
+import { createTracker } from './tracker';
+import type { TrackingEvent } from './types';
+
+interface MockAdapter extends Adapter {
+  send: ReturnType<typeof vi.fn<Adapter['send']>>;
+}
+
+/** send가 mock인 어댑터를 만든다. */
+function mockAdapter(name: string, extra: Partial<Adapter> = {}): MockAdapter {
+  return { ...extra, name, send: vi.fn(extra.send) };
+}
+
+const events = defineEvents({
+  'banner-click': {
+    trigger: 'click',
+    params: {} as { bannerId: string },
+    targets: {
+      ga4: (e) => ({ name: 'banner_click', id: e.params.bannerId }),
+      console: { static: true },
+    },
+  },
+  'opt-out': {
+    trigger: 'manual',
+    targets: { ga4: () => null, console: () => undefined },
+  },
+  'no-targets': { trigger: 'manual', targets: {} },
+});
+
+describe('createTracker', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ now: 1_000 });
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  describe('fire', () => {
+    it('리졸버 결과와 정적 페이로드를 이름이 맞는 어댑터로 보낸다', () => {
+      const ga4 = mockAdapter('ga4');
+      const consoleAdapter = mockAdapter('console');
+      const tracker = createTracker({ events, adapters: [ga4, consoleAdapter] });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+
+      expect(ga4.send).toHaveBeenCalledWith(
+        { name: 'banner_click', id: 'b1' },
+        expect.objectContaining({ key: 'banner-click', params: { bannerId: 'b1' } }),
+      );
+      expect(consoleAdapter.send).toHaveBeenCalledWith({ static: true }, expect.anything());
+    });
+
+    it('manual 트리거, context 스냅샷, timestamp로 이벤트를 만든다', () => {
+      const ga4 = mockAdapter('ga4');
+      const tracker = createTracker({ events, adapters: [ga4], context: { site: 'web' } });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+      const event = ga4.send.mock.calls[0]?.[1];
+
+      expect(event).toEqual({
+        key: 'banner-click',
+        trigger: 'manual',
+        params: { bannerId: 'b1' },
+        context: { site: 'web' },
+        timestamp: 1_000,
+      });
+      expect(event).not.toHaveProperty('element');
+    });
+
+    it('meta의 trigger와 element를 이벤트에 넣는다', () => {
+      const ga4 = mockAdapter('ga4');
+      const tracker = createTracker({ events, adapters: [ga4] });
+      const element = document.createElement('button');
+
+      tracker.fire('banner-click', { bannerId: 'b1' }, { trigger: 'click', element });
+
+      expect(ga4.send.mock.calls[0]?.[1]).toMatchObject({ trigger: 'click', element });
+    });
+
+    it('params가 없으면 빈 객체로 둔다', () => {
+      const ga4 = mockAdapter('ga4');
+      const tracker = createTracker({ events, adapters: [ga4] });
+
+      tracker.fire('opt-out');
+      tracker.fire('no-targets');
+
+      expect(ga4.send).not.toHaveBeenCalled();
+    });
+
+    it('리졸버가 null이나 undefined를 돌려주면 그 어댑터는 건너뛴다', () => {
+      const ga4 = mockAdapter('ga4');
+      const consoleAdapter = mockAdapter('console');
+      const tracker = createTracker({ events, adapters: [ga4, consoleAdapter] });
+
+      tracker.fire('opt-out');
+
+      expect(ga4.send).not.toHaveBeenCalled();
+      expect(consoleAdapter.send).not.toHaveBeenCalled();
+    });
+
+    it('없는 키는 무시하고 debug 모드에서 경고한다', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const ga4 = mockAdapter('ga4');
+      const tracker = createTracker({ events, adapters: [ga4], debug: true });
+
+      (tracker as { fire: (key: string) => void }).fire('nope');
+
+      expect(ga4.send).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]?.[0]).toContain('fire("nope") ignored');
+    });
+
+    it('debug가 꺼져 있으면 경고하지 않는다', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const tracker = createTracker({ events });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+
+      expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('없는 어댑터는 이름당 한 번만 경고한다', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const tracker = createTracker({ events, debug: true });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+      tracker.fire('banner-click', { bannerId: 'b2' });
+
+      const messages = warn.mock.calls.map((call) => String(call[0]));
+      expect(messages.filter((m) => m.includes('"ga4"'))).toHaveLength(1);
+      expect(messages.filter((m) => m.includes('"console"'))).toHaveLength(1);
+    });
+  });
+
+  describe('context', () => {
+    it('병합하고, 스냅샷을 찍고, 비운다', () => {
+      const ga4 = mockAdapter('ga4');
+      const tracker = createTracker({ events, adapters: [ga4], context: { a: 1 } });
+
+      tracker.setContext({ b: 2 });
+      expect(tracker.getContext()).toEqual({ a: 1, b: 2 });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+      tracker.setContext({ c: 3 });
+      expect(ga4.send.mock.calls[0]?.[1].context).toEqual({ a: 1, b: 2 });
+
+      tracker.clearContext();
+      expect(tracker.getContext()).toEqual({});
+    });
+
+    it('getContext 반환값을 바꿔도 내부 context는 그대로다', () => {
+      const tracker = createTracker({ events, context: { a: 1 } });
+      tracker.getContext().a = 2;
+      expect(tracker.getContext()).toEqual({ a: 1 });
+    });
+  });
+
+  describe('어댑터 on/off', () => {
+    it('꺼진 어댑터는 건너뛰고 다시 켜면 보낸다', () => {
+      const ga4 = mockAdapter('ga4');
+      const tracker = createTracker({ events, adapters: [ga4] });
+
+      tracker.setAdapterEnabled('ga4', false);
+      expect(tracker.isAdapterEnabled('ga4')).toBe(false);
+      tracker.fire('banner-click', { bannerId: 'b1' });
+      expect(ga4.send).not.toHaveBeenCalled();
+
+      tracker.setAdapterEnabled('ga4', true);
+      tracker.fire('banner-click', { bannerId: 'b2' });
+      expect(ga4.send).toHaveBeenCalledOnce();
+    });
+
+    it('없는 어댑터는 꺼진 것으로 본다', () => {
+      const tracker = createTracker({ events });
+      expect(tracker.isAdapterEnabled('ga4')).toBe(false);
+    });
+
+    it('어댑터 이름이 겹치면 throw한다', () => {
+      expect(() =>
+        createTracker({ events, adapters: [mockAdapter('ga4'), mockAdapter('ga4')] }),
+      ).toThrow('duplicate adapter name "ga4"');
+    });
+  });
+
+  describe('에러 격리', () => {
+    it('send가 throw해도 다른 어댑터에는 계속 보낸다', () => {
+      const onError = vi.fn();
+      const boom = new Error('boom');
+      const ga4 = mockAdapter('ga4', {
+        send: () => {
+          throw boom;
+        },
+      });
+      const consoleAdapter = mockAdapter('console');
+      const tracker = createTracker({ events, adapters: [ga4, consoleAdapter], onError });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+
+      expect(consoleAdapter.send).toHaveBeenCalledOnce();
+      expect(onError).toHaveBeenCalledWith(boom, {
+        phase: 'send',
+        adapter: 'ga4',
+        event: expect.objectContaining({ key: 'banner-click' }) as TrackingEvent,
+      });
+    });
+
+    it('비동기 send의 reject를 onError로 넘긴다', async () => {
+      const onError = vi.fn();
+      const boom = new Error('async boom');
+      const ga4 = mockAdapter('ga4', { send: () => Promise.reject(boom) });
+      const tracker = createTracker({ events, adapters: [ga4], onError });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+      await vi.runAllTimersAsync();
+
+      expect(onError).toHaveBeenCalledWith(boom, expect.objectContaining({ phase: 'send' }));
+    });
+
+    it('리졸버가 throw하면 onError로 넘기고 다른 타깃은 계속 처리한다', () => {
+      const onError = vi.fn();
+      const throwing = defineEvents({
+        ev: {
+          trigger: 'manual',
+          targets: {
+            ga4: () => {
+              throw new Error('resolve boom');
+            },
+            console: { ok: true },
+          },
+        },
+      });
+      const ga4 = mockAdapter('ga4');
+      const consoleAdapter = mockAdapter('console');
+      const tracker = createTracker({
+        events: throwing,
+        adapters: [ga4, consoleAdapter],
+        onError,
+      });
+
+      tracker.fire('ev');
+
+      expect(ga4.send).not.toHaveBeenCalled();
+      expect(consoleAdapter.send).toHaveBeenCalledOnce();
+      expect(onError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ phase: 'resolve', adapter: 'ga4' }),
+      );
+    });
+
+    it('onError가 없으면 console.error로 남긴다', () => {
+      const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const ga4 = mockAdapter('ga4', {
+        send: () => {
+          throw new Error('boom');
+        },
+      });
+      const tracker = createTracker({ events, adapters: [ga4] });
+
+      tracker.fire('banner-click', { bannerId: 'b1' });
+
+      expect(error).toHaveBeenCalledOnce();
+      expect(error.mock.calls[0]?.[0]).toContain('send failed in adapter "ga4"');
+    });
+  });
+
+  describe('생명주기', () => {
+    it('생성 시 setup을 호출하고 setup 에러를 onError로 넘긴다', () => {
+      const onError = vi.fn();
+      const setup = vi.fn();
+      const failing = mockAdapter('console', {
+        setup: () => {
+          throw new Error('setup boom');
+        },
+      });
+      createTracker({ events, adapters: [mockAdapter('ga4', { setup }), failing], onError });
+
+      expect(setup).toHaveBeenCalledOnce();
+      expect(onError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ phase: 'setup', adapter: 'console' }),
+      );
+    });
+
+    it('모든 어댑터를 flush하고 flush 에러를 onError로 넘긴다', async () => {
+      const onError = vi.fn();
+      const flush = vi.fn().mockResolvedValue(undefined);
+      const failing = mockAdapter('console', { flush: () => Promise.reject(new Error('x')) });
+      const tracker = createTracker({
+        events,
+        adapters: [mockAdapter('ga4', { flush }), failing],
+        onError,
+      });
+
+      await tracker.flush();
+
+      expect(flush).toHaveBeenCalledOnce();
+      expect(onError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ phase: 'flush', adapter: 'console' }),
+      );
+    });
+
+    it('destroy하면 teardown을 호출하고 이후 fire는 무시한다', () => {
+      const teardown = vi.fn();
+      const ga4 = mockAdapter('ga4', { teardown });
+      const tracker = createTracker({ events, adapters: [ga4] });
+
+      tracker.destroy();
+      tracker.destroy();
+      tracker.fire('banner-click', { bannerId: 'b1' });
+
+      expect(teardown).toHaveBeenCalledOnce();
+      expect(ga4.send).not.toHaveBeenCalled();
+    });
+  });
+});
