@@ -47,7 +47,7 @@ export type FireArgs<P extends Params> = [RequiredKeys<P>] extends [never]
 export interface Tracker<M extends EventMap = EventMap> {
   readonly events: M;
   readonly logger: Logger;
-  fire<K extends EventKeys<M>>(key: K, ...args: FireArgs<EventParams<M, K>>): void;
+  fire: <K extends EventKeys<M>>(key: K, ...args: FireArgs<EventParams<M, K>>) => void;
   getContext(): TrackingContext;
   setContext(patch: TrackingContext): void;
   clearContext(): void;
