@@ -3,8 +3,9 @@ import type { Params, TriggerName, TriggerOptions } from '../core/types';
 
 export interface TriggerContext {
   root: Element;
+  prefix: string;
   logger: Logger;
-  fire(el: Element, extra?: Params): boolean;
+  fire: (el: Element, extra?: Params) => boolean;
 }
 
 export interface TriggerInstance<T extends TriggerName = TriggerName> {

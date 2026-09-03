@@ -260,12 +260,13 @@ describe('mount', () => {
       expect(send).not.toHaveBeenCalled();
     });
 
-    it('root와 logger를 트리거에 넘긴다', () => {
+    it('root, prefix, logger를 트리거에 넘긴다', () => {
       const tracker = createTracker({ events });
       const click = fakeTrigger('click');
       unmount = mount(tracker, { triggers: [click] });
 
       expect(click.ctx?.root).toBe(document.body);
+      expect(click.ctx?.prefix).toBe('data-track');
       expect(click.ctx?.logger).toBe(tracker.logger);
     });
   });

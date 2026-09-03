@@ -33,6 +33,7 @@ export function mount(tracker: Tracker, options: MountOptions = {}): Unmount {
       trigger.name,
       trigger.setup({
         root,
+        prefix,
         logger,
         fire: (el, extra) => fireFrom(el, trigger.name, extra),
       }),
