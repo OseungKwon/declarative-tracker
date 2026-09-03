@@ -1,3 +1,4 @@
+export type { Adapter } from './core/adapter';
 export { defineEvent, defineEvents } from './core/define';
 export type {
   EventDefinition,
