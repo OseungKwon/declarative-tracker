@@ -136,6 +136,16 @@ describe('createTracker', () => {
     });
   });
 
+  describe('logger', () => {
+    it('debug일 때만 warn을 출력한다', () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      createTracker({ events }).logger.warn('quiet');
+      expect(warn).not.toHaveBeenCalled();
+      createTracker({ events, debug: true }).logger.warn('loud');
+      expect(warn).toHaveBeenCalledOnce();
+    });
+  });
+
   describe('context', () => {
     it('병합하고, 스냅샷을 찍고, 비운다', () => {
       const ga4 = mockAdapter('ga4');

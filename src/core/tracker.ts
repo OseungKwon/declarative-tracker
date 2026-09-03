@@ -1,5 +1,5 @@
 import type { Adapter } from './adapter';
-import { createLogger } from './logger';
+import { createLogger, type Logger } from './logger';
 import type {
   EventKeys,
   EventMap,
@@ -46,6 +46,7 @@ export type FireArgs<P extends Params> = [RequiredKeys<P>] extends [never]
 
 export interface Tracker<M extends EventMap = EventMap> {
   readonly events: M;
+  readonly logger: Logger;
   fire<K extends EventKeys<M>>(key: K, ...args: FireArgs<EventParams<M, K>>): void;
   getContext(): TrackingContext;
   setContext(patch: TrackingContext): void;
@@ -167,6 +168,7 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
 
   return {
     events,
+    logger: log,
     fire,
     getContext: () => ({ ...context }),
     setContext(patch) {
