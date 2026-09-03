@@ -1,4 +1,5 @@
 import type { Params } from '../core/types';
+import { boundParams } from './params';
 
 export interface ResolveOptions {
   prefix?: string;
@@ -46,7 +47,7 @@ function readIndividual(el: Element, attrPrefix: string, skip: string[]): Params
   return params;
 }
 
-/** 요소에서 이벤트 키와 params를 읽는다. 조상의 ctx < 개별 속성 < JSON 순으로 덮어쓴다. */
+/** 요소에서 이벤트 키와 params를 읽는다. 조상의 ctx < 개별 속성 < JSON < bindParams 순으로 덮어쓴다. */
 export function resolveElement(el: Element, options: ResolveOptions = {}): ResolvedElement | null {
   const { prefix = DEFAULT_PREFIX, warn } = options;
   const key = el.getAttribute(prefix);
@@ -69,6 +70,7 @@ export function resolveElement(el: Element, options: ResolveOptions = {}): Resol
       ...params,
       ...readIndividual(el, prefix, [paramsAttr, ctxAttr]),
       ...readJson(el, paramsAttr, warn),
+      ...boundParams(el),
     },
   };
 }

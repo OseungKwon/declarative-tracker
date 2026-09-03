@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { bindParams } from './params';
 import { resolveElement } from './resolve';
 
 /** HTML 문자열을 body에 넣고 첫 `[data-track]` 요소를 돌려준다. */
@@ -85,6 +86,35 @@ describe('resolveElement', () => {
       `<button data-track="k" data-track-ctx-a="1" data-track-ctx='{"b":2}'></button>`,
     );
     expect(resolveElement(el)?.params).toEqual({ a: '1', b: 2 });
+  });
+
+  it('bindParams로 붙인 값이 속성보다 우선하고 직렬화되지 않는다', () => {
+    const el = mount(
+      `<button data-track="k" data-track-id="attr" data-track-params='{"id":"json","n":"1"}'></button>`,
+    );
+    const nested = { deep: true };
+    bindParams(el, { id: 'bound', nested, n: 1 });
+
+    const params = resolveElement(el)?.params;
+    expect(params).toEqual({ id: 'bound', n: 1, nested });
+    expect(params?.nested).toBe(nested);
+  });
+
+  it('getter를 붙이면 읽을 때마다 호출한다', () => {
+    const el = mount(`<button data-track="k"></button>`);
+    let count = 0;
+    bindParams(el, () => ({ count: ++count }));
+
+    expect(resolveElement(el)?.params).toEqual({ count: 1 });
+    expect(resolveElement(el)?.params).toEqual({ count: 2 });
+  });
+
+  it('null을 붙이면 뗀다', () => {
+    const el = mount(`<button data-track="k" data-track-id="attr"></button>`);
+    bindParams(el, { id: 'bound' });
+    bindParams(el, null);
+
+    expect(resolveElement(el)?.params).toEqual({ id: 'attr' });
   });
 
   it('prefix를 바꿀 수 있다', () => {
