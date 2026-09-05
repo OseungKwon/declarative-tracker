@@ -248,8 +248,8 @@ Or keep the events flowing and mute one vendor: `tracker.setAdapterEnabled('apps
 ```tsx
 const { useTrackProps } = createTrackingHooks<typeof events>();
 
-function ProductCard({ product, index }) {
-  const track = useTrackProps('product-click', { productId: product.id, position: index });
+function ProductCard({ product }) {
+  const track = useTrackProps('product-click', { productId: product.id });
   return (
     <a {...track} href={product.url}>
       {product.name}
@@ -269,11 +269,11 @@ npm install declarative-tracker
 
 Three entry points:
 
-| Import                      | Contents                                                          | Environment              |
-| --------------------------- | ----------------------------------------------------------------- | ------------------------ |
-| `declarative-tracker`       | `defineEvents`, `defineEvent`, `createTracker`, `Adapter`, types  | Anywhere (no DOM access) |
-| `declarative-tracker/dom`   | `observe`, triggers, `trackAttrs`, `bindParams`, `resolveElement` | Browser                  |
-| `declarative-tracker/react` | `TrackingProvider`, hooks, re-exports `trackAttrs`                | React 18.2+ / 19         |
+| Import                      | Contents                                                                                                                            | Environment              |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `declarative-tracker`       | `defineEvents`, `defineEvent`, `createTracker`, `Adapter`, types                                                                    | Anywhere (no DOM access) |
+| `declarative-tracker/dom`   | `observe`, built-in triggers, `delegatedTrigger`, `defineTrigger`, `trackAttrs`, `createTrackAttrs`, `bindParams`, `resolveElement` | Browser                  |
+| `declarative-tracker/react` | `TrackingProvider`, hooks, re-exports `trackAttrs` and `createTrackAttrs`                                                           | React 18.2+ / 19         |
 
 ESM and CJS builds ship with type declarations. React is an optional peer dependency.
 
@@ -385,6 +385,7 @@ const events = defineEvents({
 
 - With `debug: true`, every `fire()` runs the schema on the merged params and logs a warning with the issues. The event is still sent as-is; validation never blocks or transforms.
 - With `debug` off, the schema is never called, so there is no cost in production.
+- Validation is synchronous. A schema whose `validate` returns a Promise is skipped with a one-time warning per event, so use a synchronous schema.
 - `defineEvent` takes the params type from the schema's output, so `schema` replaces `params: {} as ...`. With `defineEvents<Events>`, the schema's output must match the interface.
 - The library has no dependency on any schema library. It only reads the `~standard` property the spec defines.
 
@@ -405,15 +406,15 @@ interface TrackingEvent<P> {
 
 ## Markup
 
-| Attribute                       | Meaning                                                                              |
-| ------------------------------- | ------------------------------------------------------------------------------------ |
-| `data-track="key"`              | The event key. Marks the element as tracked.                                         |
-| `data-track-<name>="value"`     | One param. `data-track-product-id` becomes `productId`. Values are strings.          |
-| `data-track-params='{"a":1}'`   | Params as a JSON object, for non-string values or many params at once.               |
-| `data-track-ctx-<name>="v"`     | On any ancestor. Merged into every tracked descendant. Use for list names, sections. |
-| `data-track-ctx='{"list":"x"}'` | Ancestor context as JSON.                                                            |
+| Attribute                       | Meaning                                                                                             |
+| ------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `data-track="key"`              | The event key. Marks the element as tracked.                                                        |
+| `data-track-<name>="value"`     | One param. `data-track-product-id` becomes `productId`. Values are strings.                         |
+| `data-track-params='{"a":1}'`   | Params as a JSON object, for non-string values or many params at once.                              |
+| `data-track-ctx-<name>="v"`     | On the element or any ancestor. Merged into every tracked descendant. Use for list names, sections. |
+| `data-track-ctx='{"list":"x"}'` | Context as JSON, same placement rules.                                                              |
 
-When the same name appears more than once, later wins in this order: ancestor ctx (outermost first) → individual attributes → JSON params → `bindParams()`.
+When the same name appears more than once, later wins in this order: ctx (outermost ancestor first, down to the element itself) → individual attributes → JSON params → `bindParams()`. On one element, JSON `data-track-ctx` beats `data-track-ctx-<name>`.
 
 ```html
 <section data-track-ctx-list="featured">
@@ -423,7 +424,7 @@ When the same name appears more than once, later wins in this order: ancestor ct
 <!-- both clicks send { list: 'featured', productId: '...' } -->
 ```
 
-The `data-track` prefix is configurable: `observe(tracker, { prefix: 'data-analytics' })` makes every attribute `data-analytics-*`.
+The `data-track` prefix is configurable: `observe(tracker, { prefix: 'data-analytics' })` reads `data-analytics-*` instead. The helpers that write attributes default to `data-track` on their own, so pass the same prefix to `createTrackAttrs(prefix)`, `trackAttrs(key, params, prefix)`, and `useTrackProps(key, params, { prefix })`.
 
 ### Params without serialization
 
@@ -446,24 +447,37 @@ observe(tracker); // all built-in triggers
 observe(tracker, { triggers: [clickTrigger({ phase: 'bubble' }), impressionTrigger()] });
 ```
 
-| Trigger          | Sends when                                       | Options                                           |
-| ---------------- | ------------------------------------------------ | ------------------------------------------------- |
-| `'click'`        | The element or a descendant is clicked           | factory: `phase: 'capture' \| 'bubble'`           |
-| `'submit'`       | The element is, or contains, a form that submits | factory: `phase`                                  |
-| `'mount'`        | The element enters the DOM                       | —                                                 |
-| `'impression'`   | The element has been visible in the viewport     | `threshold`, `rootMargin`, `minVisibleMs`, `once` |
-| `'scroll-depth'` | Scroll depth crosses a milestone                 | `milestones` (required), `container`              |
-| `'manual'`       | Never automatically. Use `tracker.fire()`        | —                                                 |
+| Trigger          | Sends when                                       | Options                                                                      |
+| ---------------- | ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `'click'`        | The element or a descendant is clicked           | factory: `phase: 'capture' \| 'bubble'`                                      |
+| `'submit'`       | The element is, or contains, a form that submits | factory: `phase`                                                             |
+| `'mount'`        | The element enters the DOM                       | —                                                                            |
+| `'impression'`   | The element has been visible in the viewport     | `threshold` (0.5), `rootMargin` (`'0px'`), `minVisibleMs` (0), `once` (true) |
+| `'scroll-depth'` | Scroll depth crosses a milestone                 | `milestones` (required), `container`                                         |
+| `'manual'`       | Never automatically. Use `tracker.fire()`        | —                                                                            |
 
 Notes on the built-ins:
 
-- **click / submit** use one delegated listener on the root, in the capture phase by default so `stopPropagation()` in app code does not hide interactions. Pass `phase: 'bubble'` to the factory if you want cancelled interactions excluded.
+- **click / submit** use one delegated listener on the root, in the capture phase by default so `stopPropagation()` in app code does not hide interactions. Pass `phase: 'bubble'` to the factory if you want interactions that called `stopPropagation()` excluded. `preventDefault()` does not affect either phase.
 - **impression** shares one `IntersectionObserver` per distinct `threshold`/`rootMargin`. Elements taller than the viewport are re-observed at a ratio they can actually reach. `minVisibleMs` requires continuous visibility; leaving early cancels. While the tab is hidden nothing counts, and when it becomes visible observation restarts, so a page opened in a background tab does not report impressions. `once: false` re-sends every time the element re-enters.
-- **scroll-depth** attaches to `window`, or to the element matched by `container` (a selector). Milestones are fractions `0..1`; each sends once per element and adds `scrollDepth` and `scrollDepthPercent` to params. A document too short to scroll reports depth 1 immediately.
+- **scroll-depth** attaches to `window`, or to the element matched by `container` (a selector resolved with `document.querySelector` when the element is attached). Milestones are fractions `0..1`, clamped, deduplicated, and sorted; each sends once per element and adds `scrollDepth` and `scrollDepthPercent` to params, and the element stops listening after its last milestone. A document too short to scroll reports depth 1 immediately. An empty `milestones` list or a `container` that matches nothing logs a warning in debug mode and attaches nothing.
 
 ### Custom triggers
 
-Delegated DOM events take one line:
+Trigger names are checked against `TriggerRegistry`, so register the name (and its options type, if any) first. Put this in any module file of your app, such as `tracking.ts`:
+
+```ts
+import type { NoOptions } from 'declarative-tracker';
+
+declare module 'declarative-tracker' {
+  interface TriggerRegistry {
+    change: NoOptions;
+    hover: { delayMs?: number };
+  }
+}
+```
+
+Delegated DOM events then take one line:
 
 ```ts
 import { delegatedTrigger } from 'declarative-tracker/dom';
@@ -489,17 +503,6 @@ const hoverTrigger = defineTrigger({
 });
 ```
 
-Register the name (and its options type, if any) so event definitions accept it:
-
-```ts
-declare module 'declarative-tracker' {
-  interface TriggerRegistry {
-    change: NoOptions;
-    hover: { delayMs?: number };
-  }
-}
-```
-
 If the trigger adds params of its own through `fire(el, extra)`, declare them too so target functions see them without the event having to list them (this is how `scroll-depth` exposes `scrollDepthPercent`):
 
 ```ts
@@ -510,7 +513,7 @@ declare module 'declarative-tracker' {
 }
 ```
 
-`setup` runs once per `observe()` and receives `root`, `prefix`, `logger`, and `fire(el, extraParams?)`. `attach`/`detach` run per element. The trigger only decides _when_; reading params and sending is done by `observe()`.
+`setup` runs once per `observe()` and receives `root`, `prefix`, `logger`, and `fire(el, extraParams?)`. `attach(el, options)` and `detach(el)` run per element, and `options` is the `options` object from that element's event definition. `fire` returns `false` and sends nothing when the element's event names a different trigger. The trigger only decides _when_; reading params and sending is done by `observe()`.
 
 ## Adapters
 
@@ -560,7 +563,10 @@ const tracker = createTracker({
 });
 
 tracker.setContext({ userId: 'u1' }); // merged
+tracker.getContext(); // snapshot
 tracker.clearContext();
+tracker.setAdapterEnabled('amplitude', false); // unknown names are ignored with a debug warning
+tracker.isAdapterEnabled('amplitude'); // false
 tracker.fire('newsletter-submit', { plan: 'pro' }); // params are type-checked against the map
 ```
 
@@ -619,7 +625,7 @@ function App() {
 }
 ```
 
-`TrackingProvider` puts the tracker in context and calls `observe()` in an effect. Pass `observe={false}` if you only need `fire()`, or `observeOptions={{ prefix, triggers, root }}` to configure it.
+`TrackingProvider` puts the tracker in context and calls `observe()` in an effect. Pass `observe={false}` if you only need `fire()`, or `observeOptions={{ prefix, triggers, root }}` to configure it. `observeOptions` is read once when observation starts; changing it later has no effect.
 
 ### Marking elements
 
@@ -638,8 +644,8 @@ The unbound `trackAttrs(key, params?, prefix?)` works without a map, or with bot
 `useTrackProps` is the same idea without serializing params on every render. It returns the `data-track` attribute plus a `ref` that binds the params object directly:
 
 ```tsx
-function ProductButton({ product, index }) {
-  const props = useTrackProps('product-click', { productId: product.id, position: index });
+function ProductButton({ product }) {
+  const props = useTrackProps('product-click', { productId: product.id });
   return <button {...props}>Buy</button>;
 }
 ```
@@ -682,7 +688,7 @@ export function track(el: HTMLElement, [key, params]: [string, Params?]) {
   el.setAttribute('data-track', key);
   bindParams(el, params ?? null);
   return {
-    update: ([, next]) => bindParams(el, next ?? null),
+    update: ([, next]: [string, Params?]) => bindParams(el, next ?? null),
     destroy: () => bindParams(el, null),
   };
 }
