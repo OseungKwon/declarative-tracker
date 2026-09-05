@@ -12,15 +12,18 @@ One tag, any analytics: GA4, AppsFlyer, Amplitude, or your own adapter. Zero dep
 ```
 
 ```ts
-const events = defineEvents({
-  'product-click': defineEvent({
+interface Events {
+  'product-click': { productId: string };
+}
+
+const events = defineEvents<Events>({
+  'product-click': {
     trigger: 'click',
-    params: {} as { productId: string },
     targets: {
       ga4: (e) => ({ name: 'select_item', params: { item_id: e.params.productId } }),
       amplitude: (e) => ({ eventName: 'Product Click', props: e.params }),
     },
-  }),
+  },
 });
 
 const tracker = createTracker({ events, adapters: [ga4, amplitude] });
@@ -65,15 +68,29 @@ declarative-tracker moves that out of the handler. The button carries the intent
 ```
 
 ```ts
-'checkout-start': defineEvent({
-  trigger: 'click',
-  params: {} as { total: string },
-  targets: {
-    ga4: (e) => ({ name: 'begin_checkout', params: { value: Number(e.params.total), currency: 'KRW' } }),
-    appsflyer: (e) => ({ eventName: 'af_initiated_checkout', eventValue: { af_price: Number(e.params.total) } }),
-    amplitude: (e) => ({ eventName: 'Checkout Started', props: { total: Number(e.params.total) } }),
+interface Events {
+  'checkout-start': { total: string };
+}
+
+const events = defineEvents<Events>({
+  'checkout-start': {
+    trigger: 'click',
+    targets: {
+      ga4: (e) => ({
+        name: 'begin_checkout',
+        params: { value: Number(e.params.total), currency: 'KRW' },
+      }),
+      appsflyer: (e) => ({
+        eventName: 'af_initiated_checkout',
+        eventValue: { af_price: Number(e.params.total) },
+      }),
+      amplitude: (e) => ({
+        eventName: 'Checkout Started',
+        props: { total: Number(e.params.total) },
+      }),
+    },
   },
-}),
+});
 ```
 
 Adapter errors are isolated from the page, vendor field names live in one file, and the order flow can be tested without an analytics mock in sight.
@@ -89,7 +106,7 @@ It is a thin instrumentation layer, not another analytics SDK. It sits in front 
 
 ## Common cases
 
-Each case is complete on its own. Every one assumes `createTracker({ events, adapters })` and `observe(tracker)` ran once at startup.
+Each case shows the markup, the line for the `Events` interface, and the entry in `defineEvents<Events>({ ... })`. All of them assume `createTracker({ events, adapters })` and `observe(tracker)` ran once at startup.
 
 ### A button click
 
@@ -98,7 +115,11 @@ Each case is complete on its own. Every one assumes `createTracker({ events, ada
 ```
 
 ```ts
-'cta-click': { trigger: 'click', targets: { ga4: { name: 'cta_click' } } }
+'cta-click': {};
+```
+
+```ts
+'cta-click': { trigger: 'click', targets: { ga4: { name: 'cta_click' } } },
 ```
 
 No handler, no params. The target is a static payload.
@@ -113,14 +134,17 @@ No handler, no params. The target is a static payload.
 ```
 
 ```ts
-'product-view': defineEvent({
+'product-view': { productId: string; list: string };
+```
+
+```ts
+'product-view': {
   trigger: 'impression',
   options: { threshold: 0.5, minVisibleMs: 1000 },
-  params: {} as { productId: string; list: string },
   targets: {
     ga4: (e) => ({ name: 'view_item', params: { item_id: e.params.productId, item_list_name: e.params.list } }),
   },
-}),
+},
 ```
 
 Every item sends `{ productId, list: 'recommended' }` after being at least half visible for one second. Items that scroll past quickly do not count, and neither do items in a background tab.
@@ -140,11 +164,16 @@ An element belongs to one event, so clicks go on a child. Move the id up to ctx 
 ```
 
 ```ts
-signup: defineEvent({
+signup: {
+  plan: 'free' | 'pro';
+}
+```
+
+```ts
+signup: {
   trigger: 'submit',
-  params: {} as { plan: 'free' | 'pro' },
   targets: { ga4: (e) => ({ name: 'sign_up', params: { method: e.params.plan } }) },
-}),
+},
 ```
 
 Update `data-track-plan` when the selection changes; params are read at submit time. In React, `useTrackProps('signup', { plan })` does that without touching attributes.
@@ -153,6 +182,10 @@ Update `data-track-plan` when the selection changes; params are read at submit t
 
 ```html
 <article data-track="article-read">…</article>
+```
+
+```ts
+'article-read': {};
 ```
 
 ```ts
@@ -168,15 +201,22 @@ Sends once per milestone as the reader scrolls. For a feed that scrolls inside a
 ### One event, several vendors, different shapes
 
 ```ts
-'purchase': defineEvent({
+purchase: {
+  orderId: string;
+  amount: number;
+  currency: string;
+}
+```
+
+```ts
+purchase: {
   trigger: 'manual',
-  params: {} as { orderId: string; amount: number; currency: string },
   targets: {
     ga4: (e) => ({ name: 'purchase', params: { transaction_id: e.params.orderId, value: e.params.amount } }),
     appsflyer: (e) => ({ eventName: 'af_purchase', eventValue: { af_revenue: e.params.amount, af_currency: e.params.currency } }),
     warehouse: (e) => e.params,
   },
-}),
+},
 ```
 
 ```ts
@@ -261,19 +301,26 @@ ESM and CJS builds ship with type declarations. React is an optional peer depend
 
 ## Defining events
 
-```ts
-import { defineEvent, defineEvents } from 'declarative-tracker';
+Declare the keys and their params once, then define each event:
 
-export const events = defineEvents({
-  'hero-view': defineEvent({
+```ts
+import { defineEvents } from 'declarative-tracker';
+
+interface Events {
+  'hero-view': { variant: string };
+  'page-scroll': {};
+  'newsletter-submit': { plan: 'free' | 'pro' };
+}
+
+export const events = defineEvents<Events>({
+  'hero-view': {
     trigger: 'impression',
     options: { threshold: 0.5, minVisibleMs: 1000 },
-    params: {} as { variant: string },
     targets: {
       ga4: (e) => ({ name: 'view_hero', params: { variant: e.params.variant } }),
       appsflyer: { eventName: 'af_content_view' },
     },
-  }),
+  },
 
   'page-scroll': {
     trigger: 'scroll-depth',
@@ -283,28 +330,40 @@ export const events = defineEvents({
     },
   },
 
-  'newsletter-submit': defineEvent({
+  'newsletter-submit': {
     trigger: 'submit',
-    params: {} as { plan: 'free' | 'pro' },
     targets: {
       ga4: (e) => ({ name: 'sign_up', params: { method: e.params.plan } }),
       internal: (e) => (e.params.plan === 'pro' ? { kind: 'lead', ...e.params } : null),
     },
-  }),
+  },
 });
 ```
 
-An event has three parts:
+The interface is the contract: a key missing from the definitions, an extra key, a misspelled param in a target function, or a wrong param in `fire()` is a compile error. The interface is also a readable list of everything the app tracks, which is handy to share with whoever owns the analytics plan.
+
+An event definition has:
 
 - **`trigger`**: when to send. One of the built-in names or a custom one you register. `'manual'` means only `tracker.fire()` sends it.
-- **`params`**: the shape of this event's data. It is a type-only declaration (`{} as Shape`), never read at runtime.
 - **`targets`**: one entry per adapter name. A target is either a static payload or a function of the event. Return `null` or `undefined` to skip that adapter for this event.
+- **`options`**: required when the trigger has required options (`scroll-depth` needs `milestones`), optional otherwise.
 
-`options` is required when the trigger has required options (`scroll-depth` needs `milestones`) and optional otherwise.
+### Inferring from values instead
 
-### `defineEvent` vs plain objects
+If you prefer to keep each event's params next to its definition, call `defineEvents` without the generic and declare params on the entry. Wrap entries that read params in `defineEvent()`, otherwise TypeScript sees `e.params` as `Record<string, unknown>` inside an inline object:
 
-Inline entries work, but inside an inline entry TypeScript cannot narrow `e.params` beyond `Record<string, unknown>`. Wrap an entry in `defineEvent()` whenever a target function reads params, and you get the declared shape.
+```ts
+export const events = defineEvents({
+  'hero-view': defineEvent({
+    trigger: 'impression',
+    params: {} as { variant: string },
+    targets: { ga4: (e) => ({ name: 'view_hero', params: { variant: e.params.variant } }) },
+  }),
+  'page-scroll': { trigger: 'scroll-depth', options: { milestones: [1] }, targets: {} },
+});
+```
+
+`params` here is a type-only declaration and is never read at runtime. Both styles produce the same map, and everything downstream (`fire`, `trackAttrs`, hooks) works the same.
 
 ### The event object
 

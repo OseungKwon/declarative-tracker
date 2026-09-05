@@ -1,19 +1,25 @@
-import { defineEvent, defineEvents } from 'declarative-tracker';
+import { defineEvents } from 'declarative-tracker';
 
-export const events = defineEvents({
-  'hero-view': defineEvent({
+// 이벤트 키와 params 타입을 먼저 선언한다. 정의에서 키가 빠지거나 params 이름이 틀리면 컴파일 에러다
+interface Events {
+  'hero-view': { variant: string };
+  'product-click': { productId: string; position: string; list?: string };
+  'page-scroll': {};
+  'newsletter-submit': { plan: 'free' | 'pro' };
+}
+
+export const events = defineEvents<Events>({
+  'hero-view': {
     trigger: 'impression',
     options: { threshold: 0.5, minVisibleMs: 1000 },
-    params: {} as { variant: string },
     targets: {
       ga4: (e) => ({ name: 'view_hero', params: { variant: e.params.variant } }),
       appsflyer: { eventName: 'af_content_view' },
     },
-  }),
+  },
 
-  'product-click': defineEvent({
+  'product-click': {
     trigger: 'click',
-    params: {} as { productId: string; position: string; list?: string },
     targets: {
       ga4: (e) => ({
         name: 'select_item',
@@ -28,7 +34,7 @@ export const events = defineEvents({
         eventValue: { af_content_id: e.params.productId },
       }),
     },
-  }),
+  },
 
   'page-scroll': {
     trigger: 'scroll-depth',
@@ -38,12 +44,11 @@ export const events = defineEvents({
     },
   },
 
-  'newsletter-submit': defineEvent({
+  'newsletter-submit': {
     trigger: 'submit',
-    params: {} as { plan: 'free' | 'pro' },
     targets: {
       ga4: (e) => ({ name: 'sign_up', params: { method: e.params.plan } }),
       appsflyer: { eventName: 'af_complete_registration' },
     },
-  }),
+  },
 });
