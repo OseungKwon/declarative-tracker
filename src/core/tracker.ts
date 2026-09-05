@@ -7,6 +7,7 @@ import type {
   EventMap,
   EventParams,
   Params,
+  TargetMap,
   TrackingContext,
   TrackingEvent,
   TriggerName,
@@ -76,7 +77,8 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
     const definition = events[event.key];
     if (!definition) return;
 
-    for (const [name, resolver] of Object.entries(definition.targets)) {
+    const targets: TargetMap = definition.targets;
+    for (const [name, resolver] of Object.entries(targets)) {
       if (!registry.has(name)) {
         if (!warnedMissingAdapters.has(name)) {
           warnedMissingAdapters.add(name);

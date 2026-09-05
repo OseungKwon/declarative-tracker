@@ -224,6 +224,23 @@ describe('defineEvents<Events>', () => {
     });
   });
 
+  it('트리거가 넣는 params는 타깃 함수에서 보이고 fire에서는 요구하지 않는다', () => {
+    const map = defineEvents<{ scroll: NoOptions }>({
+      scroll: {
+        trigger: 'scroll-depth',
+        options: { milestones: [1] },
+        targets: {
+          ga4: (e) => {
+            expectTypeOf(e.params.scrollDepthPercent).toEqualTypeOf<number>();
+            return null;
+          },
+        },
+      },
+    });
+    expectTypeOf(map).toHaveProperty('scroll');
+    expectTypeOf<EventParams<typeof map, 'scroll'>>().toEqualTypeOf<NoOptions>();
+  });
+
   it('선언하지 않은 params 키는 타깃 함수에서 막힌다', () => {
     defineEvents<Events>({
       signup: {

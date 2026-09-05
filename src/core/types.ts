@@ -29,6 +29,24 @@ export interface ScrollDepthOptions {
   container?: string;
 }
 
+export interface ScrollDepthParams {
+  scrollDepth: number;
+  scrollDepthPercent: number;
+}
+
+export interface TriggerParamsRegistry {
+  'scroll-depth': ScrollDepthParams;
+}
+
+export type TriggerParams<T extends TriggerName> = T extends keyof TriggerParamsRegistry
+  ? TriggerParamsRegistry[T]
+  : Record<never, never>;
+
+type WithTriggerParams<
+  P extends Params,
+  T extends TriggerName,
+> = T extends keyof TriggerParamsRegistry ? P & TriggerParamsRegistry[T] : P;
+
 export interface TrackingEvent<P extends Params = Params> {
   key: string;
   trigger: TriggerName;
@@ -54,9 +72,9 @@ export type TargetResolver<
 
 export type TargetMap<P extends Params = Params> = Record<string, TargetResolver<P>>;
 
-interface EventDefinitionBase<P extends Params> {
+interface EventDefinitionBase<P extends Params, T extends TriggerName> {
   params?: P;
-  targets: TargetMap<P>;
+  targets: TargetMap<WithTriggerParams<P, T>>;
 }
 
 type OptionsField<T extends TriggerName> =
@@ -64,10 +82,10 @@ type OptionsField<T extends TriggerName> =
     ? { options?: TriggerOptions<T> }
     : { options: TriggerOptions<T> };
 
-export type EventDefinitionInput<
-  P extends Params,
-  T extends TriggerName,
-> = EventDefinitionBase<P> & {
+export type EventDefinitionInput<P extends Params, T extends TriggerName> = EventDefinitionBase<
+  P,
+  T
+> & {
   trigger: T;
 } & OptionsField<T>;
 

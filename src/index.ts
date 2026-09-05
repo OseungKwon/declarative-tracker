@@ -24,6 +24,7 @@ export type {
   NoOptions,
   Params,
   ScrollDepthOptions,
+  ScrollDepthParams,
   TargetMap,
   TargetPayload,
   TargetResolver,
@@ -32,5 +33,7 @@ export type {
   TrackingEvent,
   TriggerName,
   TriggerOptions,
+  TriggerParams,
+  TriggerParamsRegistry,
   TriggerRegistry,
 } from './core/types';
