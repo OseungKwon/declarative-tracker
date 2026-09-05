@@ -80,7 +80,15 @@ No handler, no params. The target is a static payload.
 }),
 ```
 
-Every item sends `{ productId, list: 'recommended' }` after being at least half visible for one second. Items that scroll past quickly do not count, and neither do items in a background tab. Put a `data-track="product-click"` on the same element with `trigger: 'click'` to get clicks with the same params.
+Every item sends `{ productId, list: 'recommended' }` after being at least half visible for one second. Items that scroll past quickly do not count, and neither do items in a background tab.
+
+An element belongs to one event, so clicks go on a child. Move the id up to ctx and both events inherit it:
+
+```html
+<li data-track="product-view" data-track-ctx-product-id="p1">
+  <a data-track="product-click" href="/p/p1">…</a>
+</li>
+```
 
 ### A form submit with the selected value
 
