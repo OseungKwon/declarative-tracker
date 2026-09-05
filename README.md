@@ -477,6 +477,16 @@ declare module 'declarative-tracker' {
 }
 ```
 
+If the trigger adds params of its own through `fire(el, extra)`, declare them too so target functions see them without the event having to list them (this is how `scroll-depth` exposes `scrollDepthPercent`):
+
+```ts
+declare module 'declarative-tracker' {
+  interface TriggerParamsRegistry {
+    hover: { hoverMs: number };
+  }
+}
+```
+
 `setup` runs once per `observe()` and receives `root`, `prefix`, `logger`, and `fire(el, extraParams?)`. `attach`/`detach` run per element. The trigger only decides _when_; reading params and sending is done by `observe()`.
 
 ## Adapters
