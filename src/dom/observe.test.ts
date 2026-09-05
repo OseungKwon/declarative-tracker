@@ -234,7 +234,7 @@ describe('mount', () => {
   });
 
   describe('ctx.fire', () => {
-    it('발화 시점의 params를 읽어 trigger와 element를 붙여 보낸다', () => {
+    it('전송 시점의 params를 읽어 trigger와 element를 붙여 보낸다', () => {
       document.body.innerHTML = `
         <main data-track-ctx-page="home">
           <button data-track="banner-click" data-track-id="1"></button>

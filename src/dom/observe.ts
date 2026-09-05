@@ -59,7 +59,7 @@ export function observe(tracker: Tracker, options: ObserveOptions = {}): Unobser
     return true;
   }
 
-  /** 키만 읽어 트리거에 연결한다. params는 발화 시점에 읽는다. */
+  /** 키만 읽어 트리거에 연결한다. params는 전송 시점에 읽는다. */
   function attach(el: Element): void {
     if (attached.has(el)) return;
     const key = el.getAttribute(prefix);

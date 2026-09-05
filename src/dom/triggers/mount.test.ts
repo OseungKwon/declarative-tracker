@@ -30,7 +30,7 @@ afterEach(() => {
 });
 
 describe('mountTrigger', () => {
-  it('요소가 추가되면 바로 발화한다', async () => {
+  it('요소가 추가되면 바로 보낸다', async () => {
     const el = document.createElement('div');
     el.setAttribute('data-track', 'page-view');
     el.setAttribute('data-track-slug', 'hello');
@@ -44,7 +44,7 @@ describe('mountTrigger', () => {
     );
   });
 
-  it('같은 요소가 옮겨져도 다시 발화하지 않는다', async () => {
+  it('같은 요소가 옮겨져도 다시 보내지 않는다', async () => {
     document.body.innerHTML = `<div id="a"><p data-track="page-view"></p></div><div id="b"></div>`;
     await flush();
     const p = document.querySelector('p');
@@ -56,7 +56,7 @@ describe('mountTrigger', () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
-  it('요소를 새로 만들면 다시 발화한다', async () => {
+  it('요소를 새로 만들면 다시 보낸다', async () => {
     document.body.innerHTML = `<p data-track="page-view"></p>`;
     await flush();
     document.body.innerHTML = `<p data-track="page-view"></p>`;

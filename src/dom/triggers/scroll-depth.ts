@@ -6,7 +6,7 @@ function normalizeMilestones(milestones: number[]): number[] {
   return [...new Set(milestones.map((m) => Math.min(1, Math.max(0, m))))].sort((a, b) => a - b);
 }
 
-/** 스크롤 깊이가 각 milestone을 넘을 때마다 한 번씩 발화한다. 기본은 문서, container로 스크롤 요소를 지정할 수 있다. */
+/** 스크롤 깊이가 각 milestone을 넘을 때마다 한 번씩 보낸다. 기본은 문서, container로 스크롤 요소를 지정할 수 있다. */
 export function scrollDepthTrigger() {
   return defineTrigger({
     name: 'scroll-depth',

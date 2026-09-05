@@ -103,7 +103,7 @@ describe('impressionTrigger', () => {
     expect(instances[1]?.options).toEqual({ threshold: 0.2, rootMargin: '10px' });
   });
 
-  it('보이면 한 번만 발화하고 관찰을 멈춘다', () => {
+  it('보이면 한 번만 보내고 관찰을 멈춘다', () => {
     setup(`<div data-track="hero" data-track-id="h1"></div>`);
     const el = document.querySelector('div');
     if (!el) throw new Error('no el');
@@ -119,7 +119,7 @@ describe('impressionTrigger', () => {
     expect(instances[0]?.unobserve).toHaveBeenCalledWith(el);
   });
 
-  it('minVisibleMs 동안 계속 보여야 발화한다', () => {
+  it('minVisibleMs 동안 계속 보여야 보낸다', () => {
     vi.useFakeTimers();
     setup(`<div data-track="card"></div>`);
     const el = document.querySelector('div');
@@ -132,7 +132,7 @@ describe('impressionTrigger', () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
-  it('minVisibleMs 전에 사라지면 발화하지 않는다', () => {
+  it('minVisibleMs 전에 사라지면 보내지 않는다', () => {
     vi.useFakeTimers();
     setup(`<div data-track="card"></div>`);
     const el = document.querySelector('div');

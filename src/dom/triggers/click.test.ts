@@ -34,7 +34,7 @@ afterEach(() => {
 });
 
 describe('clickTrigger', () => {
-  it('자식을 클릭해도 가장 가까운 data-track 요소로 발화한다', () => {
+  it('자식을 클릭해도 가장 가까운 data-track 요소로 보낸다', () => {
     setup(`<button data-track="banner-click" data-track-id="1"><span>go</span></button>`);
 
     document.querySelector('span')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -54,7 +54,7 @@ describe('clickTrigger', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('click이 아닌 트리거의 키는 발화하지 않는다', () => {
+  it('click이 아닌 트리거의 키는 보내지 않는다', () => {
     setup(`<div data-track="hero-view"></div>`);
 
     document.querySelector('div')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -62,7 +62,7 @@ describe('clickTrigger', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('버블 단계에서 stopPropagation해도 발화한다', () => {
+  it('버블 단계에서 stopPropagation해도 보낸다', () => {
     setup(`<button data-track="banner-click"><span>go</span></button>`);
     const span = document.querySelector('span');
     span?.addEventListener('click', (e) => {

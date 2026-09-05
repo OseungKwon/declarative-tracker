@@ -86,7 +86,7 @@ afterEach(() => {
 });
 
 describe('scrollDepthTrigger', () => {
-  it('깊이가 milestone을 넘을 때마다 한 번씩 발화한다', () => {
+  it('깊이가 milestone을 넘을 때마다 한 번씩 보낸다', () => {
     setup(`<div data-track="page"></div>`);
     expect(send).not.toHaveBeenCalled();
 
@@ -100,7 +100,7 @@ describe('scrollDepthTrigger', () => {
     expect(depths()).toEqual([0.25, 0.5]);
   });
 
-  it('여러 milestone을 한 번에 넘으면 순서대로 모두 발화한다', () => {
+  it('여러 milestone을 한 번에 넘으면 순서대로 모두 보낸다', () => {
     setup(`<div data-track="page"></div>`);
 
     scrollTo(3000);
@@ -119,7 +119,7 @@ describe('scrollDepthTrigger', () => {
     );
   });
 
-  it('스크롤할 수 없는 문서는 깊이 1로 보고 바로 발화한다', () => {
+  it('스크롤할 수 없는 문서는 깊이 1로 보고 바로 보낸다', () => {
     setViewport({ scrollHeight: 800, innerHeight: 1000 });
     setup(`<div data-track="page"></div>`);
 
@@ -165,7 +165,7 @@ describe('scrollDepthTrigger', () => {
     expect(remove.mock.calls.filter(([type]) => type === 'scroll')).toHaveLength(1);
   });
 
-  it('요소가 제거되면 더 발화하지 않는다', async () => {
+  it('요소가 제거되면 더 보내지 않는다', async () => {
     setup(`<div data-track="page"></div>`);
     scrollTo(750);
 
