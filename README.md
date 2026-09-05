@@ -33,9 +33,52 @@ The UI says _what happened_. The event map says _where it goes and in what shape
 
 ## Why
 
-Most tracking code ends up as `onClick={() => track('product_click', {...})}` scattered through components, with vendor-specific names and payload shapes leaking into the UI. Switching or adding a vendor means touching every call site.
+Most tracking code ends up inside the handlers that do the real work. A checkout button after a few months of "just add this event" tends to look like this:
 
-declarative-tracker moves that out of the components:
+```tsx
+async function onCheckout() {
+  if (!cart.items.length) return;
+  gtag('event', 'begin_checkout', { value: cart.total, currency: 'KRW' });
+  AF.logEvent('af_initiated_checkout', { af_price: cart.total, af_currency: 'KRW' });
+  try {
+    const order = await api.createOrder(cart);
+    amplitude.track('Checkout Started', { orderId: order.id, total: cart.total });
+    router.push(`/orders/${order.id}`);
+  } catch (e) {
+    gtag('event', 'checkout_error', { message: String(e) });
+    throw e;
+  }
+}
+```
+
+The business logic is four lines. The rest is analytics, and it causes real problems:
+
+- The same fact (`cart.total`) is spelled three ways because each vendor wants its own field names. Rename one and you have to find the other two.
+- A vendor SDK that throws or is blocked by an ad blocker can break the checkout, so every call ends up wrapped in its own `try`.
+- Marketing asks to add a fourth vendor or move the event from "before the request" to "after". That is a change to checkout code, with a review and a release.
+- Tests for `onCheckout` have to mock `gtag`, `AF`, and `amplitude` before they can test the order flow.
+
+declarative-tracker moves that out of the handler. The button carries the intent, the event map carries the vendor mapping, and `onCheckout` goes back to creating the order:
+
+```tsx
+<button data-track="checkout-start" data-track-total={cart.total} onClick={onCheckout}>
+```
+
+```ts
+'checkout-start': defineEvent({
+  trigger: 'click',
+  params: {} as { total: string },
+  targets: {
+    ga4: (e) => ({ name: 'begin_checkout', params: { value: Number(e.params.total), currency: 'KRW' } }),
+    appsflyer: (e) => ({ eventName: 'af_initiated_checkout', eventValue: { af_price: Number(e.params.total) } }),
+    amplitude: (e) => ({ eventName: 'Checkout Started', props: { total: Number(e.params.total) } }),
+  },
+}),
+```
+
+Adapter errors are isolated from the page, vendor field names live in one file, and the order flow can be tested without an analytics mock in sight.
+
+In short:
 
 - **Markup declares intent.** An element says which event it belongs to and carries its params as attributes. No handlers, no imports, works in plain HTML and SSR.
 - **One event map translates to every vendor.** Each event lists its targets. A target turns the domain event into that vendor's payload. Adding a vendor is adding a key.
