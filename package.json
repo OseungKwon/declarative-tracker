@@ -20,11 +20,11 @@
   "author": "OseungKwon",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/oseungkwon/declarative-tracker.git"
+    "url": "git+https://github.com/OseungKwon/declarative-tracker.git"
   },
-  "homepage": "https://github.com/oseungkwon/declarative-tracker#readme",
+  "homepage": "https://github.com/OseungKwon/declarative-tracker#readme",
   "bugs": {
-    "url": "https://github.com/oseungkwon/declarative-tracker/issues"
+    "url": "https://github.com/OseungKwon/declarative-tracker/issues"
   },
   "type": "module",
   "sideEffects": false,
