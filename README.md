@@ -44,6 +44,129 @@ declarative-tracker moves that out of the components:
 
 It is a thin instrumentation layer, not another analytics SDK. It sits in front of GA4, Amplitude, RudderStack, or your own endpoint and stays out of the way.
 
+## Common cases
+
+Each case is complete on its own. Every one assumes `createTracker({ events, adapters })` and `observe(tracker)` ran once at startup.
+
+### A button click
+
+```html
+<button data-track="cta-click">Start free trial</button>
+```
+
+```ts
+'cta-click': { trigger: 'click', targets: { ga4: { name: 'cta_click' } } }
+```
+
+No handler, no params. The target is a static payload.
+
+### A product list: impressions and clicks that share the list name
+
+```html
+<ul data-track-ctx-list="recommended">
+  <li data-track="product-view" data-track-product-id="p1">…</li>
+  <li data-track="product-view" data-track-product-id="p2">…</li>
+</ul>
+```
+
+```ts
+'product-view': defineEvent({
+  trigger: 'impression',
+  options: { threshold: 0.5, minVisibleMs: 1000 },
+  params: {} as { productId: string; list: string },
+  targets: {
+    ga4: (e) => ({ name: 'view_item', params: { item_id: e.params.productId, item_list_name: e.params.list } }),
+  },
+}),
+```
+
+Every item sends `{ productId, list: 'recommended' }` after being at least half visible for one second. Items that scroll past quickly do not count, and neither do items in a background tab. Put a `data-track="product-click"` on the same element with `trigger: 'click'` to get clicks with the same params.
+
+### A form submit with the selected value
+
+```html
+<form data-track="signup" data-track-plan="pro">…</form>
+```
+
+```ts
+signup: defineEvent({
+  trigger: 'submit',
+  params: {} as { plan: 'free' | 'pro' },
+  targets: { ga4: (e) => ({ name: 'sign_up', params: { method: e.params.plan } }) },
+}),
+```
+
+Update `data-track-plan` when the selection changes; params are read at submit time. In React, `useTrackProps('signup', { plan })` does that without touching attributes.
+
+### How far an article was read
+
+```html
+<article data-track="article-read">…</article>
+```
+
+```ts
+'article-read': {
+  trigger: 'scroll-depth',
+  options: { milestones: [0.25, 0.5, 0.75, 1] },
+  targets: { ga4: (e) => ({ name: 'scroll', params: { percent: e.params.scrollDepthPercent } }) },
+},
+```
+
+Sends once per milestone as the reader scrolls. For a feed that scrolls inside an element, add `container: '#feed'`.
+
+### One event, several vendors, different shapes
+
+```ts
+'purchase': defineEvent({
+  trigger: 'manual',
+  params: {} as { orderId: string; amount: number; currency: string },
+  targets: {
+    ga4: (e) => ({ name: 'purchase', params: { transaction_id: e.params.orderId, value: e.params.amount } }),
+    appsflyer: (e) => ({ eventName: 'af_purchase', eventValue: { af_revenue: e.params.amount, af_currency: e.params.currency } }),
+    warehouse: (e) => e.params,
+  },
+}),
+```
+
+```ts
+tracker.fire('purchase', { orderId: 'o1', amount: 42, currency: 'USD' });
+```
+
+The UI fires one domain event. Each vendor gets its own name and field layout. Adding a fourth vendor is one more key; removing one is deleting a key.
+
+### Nothing leaves the page until the user consents
+
+```ts
+const tracker = createTracker({
+  events,
+  adapters: [ga4, appsflyer],
+  middleware: [
+    (event, next) => {
+      if (consent.granted) next(event);
+    },
+  ],
+});
+```
+
+Or keep the events flowing and mute one vendor: `tracker.setAdapterEnabled('appsflyer', false)`.
+
+### A React component
+
+```tsx
+const { useTrackProps } = createTrackingHooks<typeof events>();
+
+function ProductCard({ product, index }) {
+  const track = useTrackProps('product-click', { productId: product.id, position: index });
+  return (
+    <a {...track} href={product.url}>
+      {product.name}
+    </a>
+  );
+}
+```
+
+Key and params are type-checked against the event map. The element gets `data-track` and a ref; nothing else is injected.
+
 ## Install
 
 ```bash
