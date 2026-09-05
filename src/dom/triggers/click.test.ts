@@ -17,11 +17,11 @@ type Send = (payload: unknown, event: TrackingEvent) => void;
 let send: ReturnType<typeof vi.fn<Send>>;
 
 /** body에 HTML을 넣고 click 트리거로 mount한다. */
-function setup(html: string, root?: Element) {
+function setup(html: string, trigger = clickTrigger()) {
   document.body.innerHTML = html;
   send = vi.fn<Send>();
   const tracker = createTracker({ events, adapters: [{ name: 'log', send }] });
-  unmount = mount(tracker, { triggers: [clickTrigger()], ...(root ? { root } : {}) });
+  unmount = mount(tracker, { triggers: [trigger] });
 }
 
 beforeEach(() => {
@@ -71,6 +71,23 @@ describe('clickTrigger', () => {
 
     span?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it("phase가 'bubble'이면 stopPropagation된 클릭은 보내지 않는다", () => {
+    setup(
+      `<button data-track="banner-click"><span>go</span></button><button data-track="banner-click" id="other"></button>`,
+      clickTrigger({ phase: 'bubble' }),
+    );
+    const span = document.querySelector('span');
+    span?.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    span?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    expect(send).not.toHaveBeenCalled();
+
+    document.getElementById('other')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     expect(send).toHaveBeenCalledOnce();
   });
 
