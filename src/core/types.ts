@@ -20,6 +20,7 @@ export interface ImpressionOptions {
   threshold?: number;
   minVisibleMs?: number;
   rootMargin?: string;
+  once?: boolean;
 }
 
 export interface ScrollDepthOptions {

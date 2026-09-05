@@ -13,6 +13,11 @@ const events = defineEvents({
     options: { threshold: 0.2, rootMargin: '10px', minVisibleMs: 1000 },
     targets: { log: 1 },
   },
+  feed: {
+    trigger: 'impression',
+    options: { once: false, minVisibleMs: 100 },
+    targets: { log: 1 },
+  },
 });
 
 type Send = (payload: unknown, event: TrackingEvent) => void;
@@ -132,6 +137,23 @@ describe('impressionTrigger', () => {
     vi.advanceTimersByTime(1000);
 
     expect(send).not.toHaveBeenCalled();
+  });
+
+  it('once가 false면 관찰을 유지하고 다시 보일 때마다 보낸다', () => {
+    vi.useFakeTimers();
+    setup(`<div data-track="feed"></div>`);
+    const el = document.querySelector('div');
+    if (!el) throw new Error('no el');
+
+    instances[0]?.see(el);
+    vi.advanceTimersByTime(100);
+    expect(send).toHaveBeenCalledOnce();
+    expect(instances[0]?.unobserve).not.toHaveBeenCalled();
+
+    instances[0]?.see(el, false);
+    instances[0]?.see(el);
+    vi.advanceTimersByTime(100);
+    expect(send).toHaveBeenCalledTimes(2);
   });
 
   it('요소가 제거되면 타이머를 취소하고 관찰을 멈춘다', async () => {

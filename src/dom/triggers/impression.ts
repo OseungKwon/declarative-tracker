@@ -8,6 +8,7 @@ interface Watched {
   threshold: number;
   rootMargin: string;
   minVisibleMs: number;
+  once: boolean;
   adjusted: boolean;
 }
 
@@ -19,7 +20,7 @@ function neededRatio(entry: IntersectionObserverEntry, threshold: number): numbe
   return Math.max(0.01, Math.round(((rootHeight * threshold) / height) * 100) / 100);
 }
 
-/** 요소가 뷰포트에 threshold 이상, minVisibleMs 이상 보이면 한 번 발화한다. */
+/** 요소가 뷰포트에 threshold 이상, minVisibleMs 이상 보이면 이벤트를 보낸다. once가 false면 다시 보일 때마다 보낸다. */
 export function impressionTrigger() {
   return defineTrigger({
     name: 'impression',
@@ -39,8 +40,10 @@ export function impressionTrigger() {
         const state = watched.get(el);
         if (!state) return;
         cancelTimer(el);
-        state.observer.unobserve(el);
-        watched.delete(el);
+        if (state.once) {
+          state.observer.unobserve(el);
+          watched.delete(el);
+        }
         fire(el);
       };
 
@@ -97,6 +100,7 @@ export function impressionTrigger() {
             threshold,
             rootMargin,
             minVisibleMs: options?.minVisibleMs ?? 0,
+            once: options?.once ?? true,
             adjusted: false,
           });
           observer.observe(el);
