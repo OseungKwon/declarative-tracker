@@ -412,3 +412,66 @@ describe('createTracker', () => {
     });
   });
 });
+
+describe('schema', () => {
+  const planSchema = {
+    '~standard': {
+      version: 1 as const,
+      vendor: 'test',
+      validate: (value: unknown) =>
+        typeof (value as { plan?: unknown }).plan === 'string'
+          ? { value: value as { plan: string } }
+          : { issues: [{ message: 'plan is required', path: ['plan'] }] },
+    },
+  };
+  const asyncSchema = {
+    '~standard': {
+      version: 1 as const,
+      vendor: 'test',
+      validate: (value: unknown) => Promise.resolve({ value: value as { plan: string } }),
+    },
+  };
+  const schemaEvents = defineEvents({
+    signup: { trigger: 'manual', schema: planSchema, targets: { ga4: () => 1 } },
+    slow: { trigger: 'manual', schema: asyncSchema, targets: { ga4: () => 1 } },
+  });
+
+  it('debug일 때 params가 schema에 맞지 않으면 경고하고 이벤트는 그대로 보낸다', () => {
+    const logger = { warn: vi.fn(), error: vi.fn() };
+    const ga4 = mockAdapter('ga4');
+    const tracker = createTracker({ events: schemaEvents, adapters: [ga4], debug: true, logger });
+
+    tracker.fire('signup', { plan: 'pro' });
+    expect(logger.warn).not.toHaveBeenCalled();
+
+    tracker.fire('signup', {} as { plan: string });
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('invalid params for "signup"'),
+      [{ message: 'plan is required', path: ['plan'] }],
+    );
+    expect(ga4.send).toHaveBeenCalledTimes(2);
+  });
+
+  it('debug가 꺼져 있으면 schema를 부르지 않는다', () => {
+    const validate = vi.spyOn(planSchema['~standard'], 'validate');
+    createTracker({ events: schemaEvents, adapters: [mockAdapter('ga4')] }).fire(
+      'signup',
+      {} as { plan: string },
+    );
+    expect(validate).not.toHaveBeenCalled();
+  });
+
+  it('비동기 schema는 건너뛰고 한 번만 경고한다', () => {
+    const logger = { warn: vi.fn(), error: vi.fn() };
+    const tracker = createTracker({
+      events: schemaEvents,
+      adapters: [mockAdapter('ga4')],
+      debug: true,
+      logger,
+    });
+    tracker.fire('slow', { plan: 'x' });
+    tracker.fire('slow', { plan: 'y' });
+    expect(logger.warn).toHaveBeenCalledOnce();
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('asynchronously'));
+  });
+});

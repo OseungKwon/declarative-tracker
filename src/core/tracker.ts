@@ -109,6 +109,23 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
     dispatch,
   );
 
+  const asyncSchemaWarned = new Set<string>();
+
+  /** debug일 때 이벤트 정의의 schema로 params를 검사해 경고만 남긴다. 이벤트는 그대로 보낸다. */
+  function validateParams(key: string, params: Params): void {
+    const schema = events[key]?.schema;
+    if (!schema) return;
+    const result = schema['~standard'].validate(params);
+    if (result instanceof Promise) {
+      if (!asyncSchemaWarned.has(key)) {
+        asyncSchemaWarned.add(key);
+        log.warn(`schema for "${key}" validates asynchronously; skipped`);
+      }
+      return;
+    }
+    if (result.issues) log.warn(`invalid params for "${key}"`, result.issues);
+  }
+
   /** 이벤트를 만들어 파이프라인에 태운다. */
   function fire(key: string, params?: Params, meta?: FireMeta): void {
     if (destroyed) {
@@ -119,6 +136,7 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
       log.warn(`fire("${key}") ignored: no such event`);
       return;
     }
+    if (debug) validateParams(key, params ?? {});
 
     const event: TrackingEvent = {
       key,
