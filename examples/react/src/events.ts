@@ -39,7 +39,7 @@ export const events = defineEvents({
   },
 
   'newsletter-submit': defineEvent({
-    trigger: 'manual',
+    trigger: 'submit',
     params: {} as { plan: 'free' | 'pro' },
     targets: {
       ga4: (e) => ({ name: 'sign_up', params: { method: e.params.plan } }),

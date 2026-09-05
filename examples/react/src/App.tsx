@@ -1,23 +1,19 @@
 import { trackAttrs, TrackingProvider } from 'declarative-tracker/react';
-import { type FormEvent, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 
 import { logStore } from './adapters';
-import { tracker, useFire, useTrackProps } from './tracking';
+import { tracker, useTrackProps } from './tracking';
 
 const PRODUCTS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
 
+// submit 트리거: 폼에 data-track을 두면 제출 시점에 params를 읽어 보낸다
 function Newsletter() {
-  const fireSubmit = useFire('newsletter-submit');
-
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const plan = new FormData(e.currentTarget).get('plan') as 'free' | 'pro';
-    fireSubmit({ plan });
-  };
+  const [plan, setPlan] = useState<'free' | 'pro'>('free');
+  const props = useTrackProps('newsletter-submit', { plan });
 
   return (
-    <form onSubmit={onSubmit}>
-      <select name="plan">
+    <form {...props} onSubmit={(e) => e.preventDefault()}>
+      <select value={plan} onChange={(e) => setPlan(e.target.value as 'free' | 'pro')}>
         <option value="free">Free</option>
         <option value="pro">Pro</option>
       </select>
