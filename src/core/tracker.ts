@@ -1,4 +1,6 @@
 import type { Adapter } from './adapter';
+import { createAdapterRegistry } from './adapter-registry';
+import type { ErrorHandler } from './errors';
 import { createLogger, type Logger } from './logger';
 import type {
   EventKeys,
@@ -10,17 +12,9 @@ import type {
   TriggerName,
 } from './types';
 
+export type { ErrorHandler, ErrorInfo, ErrorPhase } from './errors';
+
 export type Middleware = (event: TrackingEvent, next: (event: TrackingEvent) => void) => void;
-
-export type ErrorPhase = 'setup' | 'resolve' | 'send' | 'flush' | 'teardown';
-
-export interface ErrorInfo {
-  phase: ErrorPhase;
-  adapter?: string;
-  event?: TrackingEvent;
-}
-
-export type ErrorHandler = (error: unknown, info: ErrorInfo) => void;
 
 export interface TrackerOptions<M extends EventMap> {
   events: M;
@@ -57,11 +51,6 @@ export interface Tracker<M extends EventMap = EventMap> {
   destroy(): void;
 }
 
-interface AdapterRecord {
-  adapter: Adapter;
-  enabled: boolean;
-}
-
 /** 이벤트 맵과 어댑터로 트래커를 만든다. */
 export function createTracker<M extends EventMap>(options: TrackerOptions<M>): Tracker<M> {
   const { events, adapters = [], middleware = [], debug = false } = options;
@@ -75,37 +64,12 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
       );
     });
 
-  const registry = new Map<string, AdapterRecord>();
-  for (const adapter of adapters) {
-    if (registry.has(adapter.name)) {
-      throw new Error(`[declarative-tracker] duplicate adapter name "${adapter.name}"`);
-    }
-    registry.set(adapter.name, { adapter, enabled: true });
-  }
+  const registry = createAdapterRegistry(adapters, onError);
+  registry.setup();
 
   let context: TrackingContext = { ...options.context };
   let destroyed = false;
   const warnedMissingAdapters = new Set<string>();
-
-  /** 동기·비동기 에러를 onError로 넘긴다. */
-  function guard<T>(run: () => T | Promise<T>, info: ErrorInfo): void {
-    try {
-      const result = run();
-      if (result instanceof Promise) {
-        result.catch((error: unknown) => {
-          onError(error, info);
-        });
-      }
-    } catch (error) {
-      onError(error, info);
-    }
-  }
-
-  for (const { adapter } of registry.values()) {
-    if (adapter.setup) {
-      guard(() => adapter.setup?.(), { phase: 'setup', adapter: adapter.name });
-    }
-  }
 
   /** 타깃 리졸버를 실행해 어댑터로 보낸다. */
   function dispatch(event: TrackingEvent): void {
@@ -113,15 +77,14 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
     if (!definition) return;
 
     for (const [name, resolver] of Object.entries(definition.targets)) {
-      const record = registry.get(name);
-      if (!record) {
+      if (!registry.has(name)) {
         if (!warnedMissingAdapters.has(name)) {
           warnedMissingAdapters.add(name);
           log.warn(`no adapter named "${name}" (used by event "${event.key}")`);
         }
         continue;
       }
-      if (!record.enabled) continue;
+      if (!registry.isEnabled(name)) continue;
 
       let payload: unknown;
       try {
@@ -132,7 +95,7 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
       }
       if (payload === null || payload === undefined) continue;
 
-      guard(() => record.adapter.send(payload, event), { phase: 'send', adapter: name, event });
+      registry.send(name, payload, event);
     }
   }
 
@@ -178,31 +141,16 @@ export function createTracker<M extends EventMap>(options: TrackerOptions<M>): T
       context = {};
     },
     setAdapterEnabled(name, enabled) {
-      const record = registry.get(name);
-      if (!record) {
+      if (!registry.setEnabled(name, enabled)) {
         log.warn(`setAdapterEnabled("${name}") ignored: no such adapter`);
-        return;
       }
-      record.enabled = enabled;
     },
-    isAdapterEnabled: (name) => registry.get(name)?.enabled ?? false,
-    async flush() {
-      await Promise.all(
-        [...registry.values()].map(async ({ adapter }) => {
-          try {
-            await adapter.flush?.();
-          } catch (error) {
-            onError(error, { phase: 'flush', adapter: adapter.name });
-          }
-        }),
-      );
-    },
+    isAdapterEnabled: (name) => registry.isEnabled(name),
+    flush: () => registry.flush(),
     destroy() {
       if (destroyed) return;
       destroyed = true;
-      for (const { adapter } of registry.values()) {
-        guard(() => adapter.teardown?.(), { phase: 'teardown', adapter: adapter.name });
-      }
+      registry.teardown();
     },
   };
 }
