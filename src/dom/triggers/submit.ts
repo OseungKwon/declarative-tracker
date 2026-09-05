@@ -1,23 +1,8 @@
-import { defineTrigger } from '../trigger';
+import { delegatedTrigger, type DelegatedTriggerOptions } from './delegate';
 
-/** root에 캡처 단계 submit 리스너 하나를 두고 폼에서 가장 가까운 data-track 요소의 이벤트를 보낸다. */
-export function submitTrigger() {
-  return defineTrigger({
-    name: 'submit',
-    setup({ root, prefix, fire }) {
-      const selector = `[${prefix}]`;
-      const onSubmit = (event: Event) => {
-        if (!(event.target instanceof Element)) return;
-        const el = event.target.closest(selector);
-        if (el && root.contains(el)) fire(el);
-      };
-      root.addEventListener('submit', onSubmit, true);
-      return {
-        attach: () => undefined,
-        destroy: () => {
-          root.removeEventListener('submit', onSubmit, true);
-        },
-      };
-    },
-  });
+export type SubmitTriggerOptions = DelegatedTriggerOptions;
+
+/** 제출된 폼에서 가장 가까운 data-track 요소를 트리거한다. 기본은 캡처 단계다. */
+export function submitTrigger(options: SubmitTriggerOptions = {}) {
+  return delegatedTrigger('submit', 'submit', options);
 }

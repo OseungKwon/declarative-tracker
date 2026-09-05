@@ -9,6 +9,9 @@ export type { ResolveOptions, ResolvedElement } from './resolve';
 export { defineTrigger } from './trigger';
 export type { Trigger, TriggerContext, TriggerInstance } from './trigger';
 export type { ClickTriggerOptions } from './triggers/click';
+export { delegatedTrigger } from './triggers/delegate';
+export type { DelegatedTriggerOptions } from './triggers/delegate';
+export type { SubmitTriggerOptions } from './triggers/submit';
 export {
   clickTrigger,
   defaultTriggers,
