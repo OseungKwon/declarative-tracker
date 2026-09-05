@@ -9,3 +9,5 @@ pnpm changeset
 Pick the bump (patch / minor / major) and write one line about the change. Commit the generated file with your change.
 
 When it lands on `main`, the release workflow opens a "chore: 버전 올림" pull request that bumps the version and updates `CHANGELOG.md`. Merging that PR publishes to npm.
+
+CI checks every pull request: a change under `src/` must come with a changeset, and a version change in `package.json` must be exactly one step (patch, minor, or major) from `main`. Run `pnpm check:release` locally to see what CI will say.
