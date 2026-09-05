@@ -15,6 +15,7 @@ export type {
 export type {
   EventDefinition,
   EventDefinitionInput,
+  EventDefinitions,
   EventKeys,
   EventMap,
   EventParams,

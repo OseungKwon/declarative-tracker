@@ -77,6 +77,10 @@ export type EventDefinition<P extends Params = Params, T extends TriggerName = T
 
 export type EventMap = Record<string, EventDefinition>;
 
+export type EventDefinitions<PM extends object> = {
+  [K in keyof PM]: EventDefinition<PM[K] extends Params ? PM[K] : Params>;
+};
+
 export type InferParams<D> = D extends { params?: infer P extends Params } ? P : Params;
 
 export type EventKeys<M extends EventMap> = Extract<keyof M, string>;

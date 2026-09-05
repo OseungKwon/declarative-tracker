@@ -1,7 +1,14 @@
 import { describe, expectTypeOf, it } from 'vitest';
 
 import { defineEvent, defineEvents } from './define';
-import type { EventKeys, EventParams, Params, TrackingEvent, TriggerName } from './types';
+import type {
+  EventKeys,
+  EventParams,
+  NoOptions,
+  Params,
+  TrackingEvent,
+  TriggerName,
+} from './types';
 
 describe('defineEvent', () => {
   it('params를 추론해 타깃 함수의 event에 붙인다', () => {
@@ -149,6 +156,88 @@ describe('defineEvents', () => {
       'banner-click' | 'hero-impression' | 'page-scroll' | 'other-click'
     >();
     expectTypeOf<EventParams<typeof merged, 'other-click'>>().toEqualTypeOf<{ x: number }>();
+  });
+});
+
+describe('defineEvents<Events>', () => {
+  interface Events {
+    signup: { plan: 'free' | 'pro' };
+    'product-click': { productId: string; list?: string };
+    'page-scroll': NoOptions;
+  }
+
+  const events = defineEvents<Events>({
+    signup: {
+      trigger: 'submit',
+      targets: {
+        ga4: (e) => {
+          expectTypeOf(e.params).toEqualTypeOf<{ plan: 'free' | 'pro' }>();
+          return { method: e.params.plan };
+        },
+      },
+    },
+    'product-click': {
+      trigger: 'click',
+      targets: { ga4: (e) => e.params.productId },
+    },
+    'page-scroll': {
+      trigger: 'scroll-depth',
+      options: { milestones: [0.5, 1] },
+      targets: { ga4: { name: 'scroll' } },
+    },
+  });
+
+  it('인라인 항목의 타깃 함수에도 params 타입이 붙는다', () => {
+    expectTypeOf(events).toHaveProperty('signup');
+    expectTypeOf<EventParams<typeof events, 'signup'>>().toEqualTypeOf<{
+      plan: 'free' | 'pro';
+    }>();
+    expectTypeOf<EventParams<typeof events, 'product-click'>>().toEqualTypeOf<{
+      productId: string;
+      list?: string;
+    }>();
+    expectTypeOf<EventKeys<typeof events>>().toEqualTypeOf<
+      'signup' | 'product-click' | 'page-scroll'
+    >();
+  });
+
+  it('키가 빠지거나 남으면 막힌다', () => {
+    // @ts-expect-error product-click과 page-scroll 정의가 없다
+    defineEvents<Events>({ signup: { trigger: 'submit', targets: {} } });
+    defineEvents<Events>({
+      signup: { trigger: 'submit', targets: {} },
+      'product-click': { trigger: 'click', targets: {} },
+      'page-scroll': { trigger: 'scroll-depth', options: { milestones: [1] }, targets: {} },
+      // @ts-expect-error Events에 없는 키다
+      extra: { trigger: 'click', targets: {} },
+    });
+  });
+
+  it('트리거 옵션 검사가 유지된다', () => {
+    defineEvents<{ a: NoOptions }>({
+      // @ts-expect-error scroll-depth는 milestones 필수
+      a: { trigger: 'scroll-depth', targets: {} },
+    });
+    defineEvents<{ a: NoOptions }>({
+      // @ts-expect-error milestones는 impression 옵션이 아님
+      a: { trigger: 'impression', options: { milestones: [1] }, targets: {} },
+    });
+  });
+
+  it('선언하지 않은 params 키는 타깃 함수에서 막힌다', () => {
+    defineEvents<Events>({
+      signup: {
+        trigger: 'submit',
+        targets: {
+          ga4: (e) => {
+            expectTypeOf(e.params).not.toHaveProperty('nope');
+            return null;
+          },
+        },
+      },
+      'product-click': { trigger: 'click', targets: {} },
+      'page-scroll': { trigger: 'scroll-depth', options: { milestones: [1] }, targets: {} },
+    });
   });
 });
 
