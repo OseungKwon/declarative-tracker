@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/oseungkwon/declarative-tracker/actions/workflows/ci.yml/badge.svg)](https://github.com/oseungkwon/declarative-tracker/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/declarative-tracker)](https://www.npmjs.com/package/declarative-tracker)
-[![license](https://img.shields.io/npm/l/declarative-tracker)](./LICENSE)
+[![license](https://img.shields.io/github/license/oseungkwon/declarative-tracker)](./LICENSE)
 
 Declarative, type-safe event tracking with `data-track` attributes.
 One tag, any analytics: GA4, AppsFlyer, Amplitude, or your own adapter. Zero dependencies.
@@ -364,6 +364,27 @@ export const events = defineEvents({
 ```
 
 `params` here is a type-only declaration and is never read at runtime. Both styles produce the same map, and everything downstream (`fire`, `trackAttrs`, hooks) works the same.
+
+### Validating params at runtime
+
+Types catch mistakes in code, not in markup. A `data-track-price="abc"` or a missing `data-track-product-id` compiles fine and only shows up as a broken report weeks later. To catch that while developing, give an event a `schema` from any [Standard Schema](https://standardschema.dev) library (zod, valibot, arktype, ...):
+
+```ts
+import { z } from 'zod';
+
+const events = defineEvents({
+  'product-click': defineEvent({
+    trigger: 'click',
+    schema: z.object({ productId: z.string(), price: z.coerce.number() }),
+    targets: { ga4: (e) => ({ name: 'select_item', params: { item_id: e.params.productId } }) },
+  }),
+});
+```
+
+- With `debug: true`, every `fire()` runs the schema on the merged params and logs a warning with the issues. The event is still sent as-is; validation never blocks or transforms.
+- With `debug` off, the schema is never called, so there is no cost in production.
+- `defineEvent` takes the params type from the schema's output, so `schema` replaces `params: {} as ...`. With `defineEvents<Events>`, the schema's output must match the interface.
+- The library has no dependency on any schema library. It only reads the `~standard` property the spec defines.
 
 ### The event object
 
