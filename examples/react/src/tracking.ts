@@ -1,5 +1,5 @@
 import { createTracker } from 'declarative-tracker';
-import { createTrackingHooks } from 'declarative-tracker/react';
+import { createTrackAttrs, createTrackingHooks } from 'declarative-tracker/react';
 
 import { appsflyer, ga4 } from './adapters';
 import { events } from './events';
@@ -11,5 +11,6 @@ export const tracker = createTracker({
   debug: true,
 });
 
-// 맵 타입이 고정된 훅. 컴포넌트에서 제네릭 없이 쓴다
+// 맵 타입이 고정된 훅과 attrs. 컴포넌트에서 제네릭 없이 쓴다
 export const { useFire, useTrackProps } = createTrackingHooks<typeof events>();
+export const attrs = createTrackAttrs<typeof events>();

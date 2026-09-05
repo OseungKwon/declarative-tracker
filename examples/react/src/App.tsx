@@ -1,8 +1,8 @@
-import { trackAttrs, TrackingProvider } from 'declarative-tracker/react';
+import { TrackingProvider } from 'declarative-tracker/react';
 import { useState, useSyncExternalStore } from 'react';
 
 import { logStore } from './adapters';
-import { tracker, useTrackProps } from './tracking';
+import { attrs, tracker, useTrackProps } from './tracking';
 
 const PRODUCTS = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'];
 
@@ -54,7 +54,7 @@ export default function App() {
   return (
     <TrackingProvider tracker={tracker}>
       <div data-track="page-scroll">
-        <section className="hero" {...trackAttrs('hero-view', { variant: 'a' })}>
+        <section className="hero" {...attrs('hero-view', { variant: 'a' })}>
           <h1>Scroll down and click around</h1>
         </section>
         <Products />
