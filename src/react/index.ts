@@ -5,4 +5,4 @@ export type { FireKey, TrackingHooks } from './hooks';
 export { TrackingProvider } from './provider';
 export type { TrackingProviderProps } from './provider';
 export { useTrackProps } from './track-props';
-export type { TrackProps } from './track-props';
+export type { TrackProps, TrackPropsOptions } from './track-props';

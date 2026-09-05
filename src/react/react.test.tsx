@@ -1,4 +1,5 @@
 import { act, cleanup, render, renderHook } from '@testing-library/react';
+import { createRef, type Ref } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { defineEvents } from '../core/define';
@@ -193,8 +194,32 @@ describe('useTrackProps', () => {
   });
 
   it('prefix를 바꿀 수 있다', () => {
-    const { result } = renderHook(() => useTrackProps('k', undefined, 'data-analytics'));
+    const { result } = renderHook(() =>
+      useTrackProps('k', undefined, { prefix: 'data-analytics' }),
+    );
     expect(result.current['data-analytics']).toBe('k');
     expect(typeof result.current.ref).toBe('function');
+  });
+
+  it('options.ref로 넘긴 객체 ref와 콜백 ref를 같이 채운다', () => {
+    const objectRef = createRef<Element>();
+    const callbackRef = vi.fn<(el: Element | null) => void>();
+
+    function Button({ target, label }: { target: Ref<Element>; label: string }) {
+      return <button {...useTrackProps('k', undefined, { ref: target })}>{label}</button>;
+    }
+    const { getByText, unmount } = render(
+      <>
+        <Button target={objectRef} label="first" />
+        <Button target={callbackRef} label="second" />
+      </>,
+    );
+
+    expect(objectRef.current).toBe(getByText('first'));
+    expect(callbackRef).toHaveBeenCalledWith(getByText('second'));
+
+    unmount();
+    expect(objectRef.current).toBeNull();
+    expect(callbackRef).toHaveBeenLastCalledWith(null);
   });
 });

@@ -3,7 +3,7 @@ import { useCallback, useContext } from 'react';
 import type { FireArgs, Tracker } from '../core/tracker';
 import type { EventKeys, EventMap, EventParams } from '../core/types';
 import { TrackerContext } from './provider';
-import { type TrackProps, useTrackProps } from './track-props';
+import { type TrackProps, type TrackPropsOptions, useTrackProps } from './track-props';
 
 export type FireKey<M extends EventMap, K extends EventKeys<M>> = (
   ...args: FireArgs<EventParams<M, K>>
@@ -41,7 +41,7 @@ export interface TrackingHooks<M extends EventMap> {
   useTrackProps: <K extends EventKeys<M>>(
     key: K,
     params?: EventParams<M, K>,
-    prefix?: string,
+    options?: TrackPropsOptions,
   ) => TrackProps;
 }
 
@@ -51,6 +51,6 @@ export function createTrackingHooks<M extends EventMap>(): TrackingHooks<M> {
     useTracker: () => useTracker<M>(),
     useFire: (<K extends EventKeys<M>>(key?: K) =>
       key === undefined ? useFire<M>() : useFire<M, K>(key)) as TrackingHooks<M>['useFire'],
-    useTrackProps: (key, params, prefix) => useTrackProps<M, typeof key>(key, params, prefix),
+    useTrackProps: (key, params, options) => useTrackProps<M, typeof key>(key, params, options),
   };
 }
