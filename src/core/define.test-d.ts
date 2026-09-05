@@ -155,7 +155,7 @@ describe('defineEvents', () => {
 describe('TriggerName', () => {
   it('내장 트리거 목록이다', () => {
     expectTypeOf<TriggerName>().toEqualTypeOf<
-      'click' | 'mount' | 'impression' | 'scroll-depth' | 'manual'
+      'click' | 'submit' | 'mount' | 'impression' | 'scroll-depth' | 'manual'
     >();
   });
 });

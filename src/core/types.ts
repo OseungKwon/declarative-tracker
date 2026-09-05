@@ -6,6 +6,7 @@ export type NoOptions = Record<never, never>;
 
 export interface TriggerRegistry {
   click: NoOptions;
+  submit: NoOptions;
   mount: NoOptions;
   impression: ImpressionOptions;
   'scroll-depth': ScrollDepthOptions;

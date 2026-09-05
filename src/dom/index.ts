@@ -15,4 +15,5 @@ export {
   impressionTrigger,
   mountTrigger,
   scrollDepthTrigger,
+  submitTrigger,
 } from './triggers';
