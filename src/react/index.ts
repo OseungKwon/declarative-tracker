@@ -1,5 +1,5 @@
-export { trackAttrs } from '../dom/attrs';
-export type { TrackAttrs } from '../dom/attrs';
+export { createTrackAttrs, trackAttrs } from '../dom/attrs';
+export type { TrackAttrs, TrackAttrsFor } from '../dom/attrs';
 export { createTrackingHooks, useFire, useTracker } from './hooks';
 export type { FireKey, TrackingHooks } from './hooks';
 export { TrackingProvider } from './provider';
