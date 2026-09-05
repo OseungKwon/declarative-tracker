@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "declarative-tracker": "link:../..",
+    "declarative-tracker": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
