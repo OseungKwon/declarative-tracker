@@ -4,6 +4,7 @@ import { defineEvent, defineEvents } from './define';
 import type {
   EventKeys,
   EventParams,
+  InferParams,
   NoOptions,
   Params,
   TrackingEvent,
@@ -254,6 +255,42 @@ describe('defineEvents<Events>', () => {
       },
       'product-click': { trigger: 'click', targets: {} },
       'page-scroll': { trigger: 'scroll-depth', options: { milestones: [1] }, targets: {} },
+    });
+  });
+});
+
+describe('schema', () => {
+  const planSchema = {
+    '~standard': {
+      version: 1 as const,
+      vendor: 'test',
+      validate: (value: unknown) => ({ value: value as { plan: 'free' | 'pro' } }),
+      types: undefined as { input: unknown; output: { plan: 'free' | 'pro' } } | undefined,
+    },
+  };
+
+  it('defineEvent는 schema의 출력 타입을 params로 쓴다', () => {
+    const def = defineEvent({
+      trigger: 'submit',
+      schema: planSchema,
+      targets: {
+        ga4: (e) => {
+          expectTypeOf(e.params).toEqualTypeOf<{ plan: 'free' | 'pro' }>();
+          return null;
+        },
+      },
+    });
+    expectTypeOf(def.trigger).toEqualTypeOf<'submit'>();
+    expectTypeOf<InferParams<typeof def>>().toEqualTypeOf<{ plan: 'free' | 'pro' }>();
+  });
+
+  it('defineEvents<Events>에서는 schema 출력이 Events의 params와 맞아야 한다', () => {
+    defineEvents<{ signup: { plan: 'free' | 'pro' } }>({
+      signup: { trigger: 'submit', schema: planSchema, targets: {} },
+    });
+    defineEvents<{ signup: { plan: string; extra: number } }>({
+      // @ts-expect-error schema 출력에 extra가 없다
+      signup: { trigger: 'submit', schema: planSchema, targets: {} },
     });
   });
 });

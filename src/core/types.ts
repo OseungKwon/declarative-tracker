@@ -1,3 +1,5 @@
+import type { StandardSchemaV1 } from './standard-schema';
+
 export type Params = Record<string, unknown>;
 
 export type TrackingContext = Record<string, unknown>;
@@ -74,6 +76,7 @@ export type TargetMap<P extends Params = Params> = Record<string, TargetResolver
 
 interface EventDefinitionBase<P extends Params, T extends TriggerName> {
   params?: P;
+  schema?: StandardSchemaV1<unknown, P>;
   targets: TargetMap<WithTriggerParams<P, T>>;
 }
 
@@ -99,7 +102,11 @@ export type EventDefinitions<PM extends object> = {
   [K in keyof PM]: EventDefinition<PM[K] extends Params ? PM[K] : Params>;
 };
 
-export type InferParams<D> = D extends { params?: infer P extends Params } ? P : Params;
+export type InferParams<D> = D extends { params?: infer P extends Params }
+  ? P
+  : D extends { schema?: StandardSchemaV1<unknown, infer O extends Params> }
+    ? O
+    : Params;
 
 export type EventKeys<M extends EventMap> = Extract<keyof M, string>;
 

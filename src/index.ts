@@ -1,6 +1,7 @@
 export type { Adapter } from './core/adapter';
 export { defineEvent, defineEvents } from './core/define';
 export type { Logger, LoggerOption } from './core/logger';
+export type { StandardSchemaV1 } from './core/standard-schema';
 export { createTracker } from './core/tracker';
 export type {
   ErrorHandler,
