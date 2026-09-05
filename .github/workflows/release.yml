@@ -24,14 +24,23 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       # npm trusted publishing(OIDC)은 npm 11.5 이상이 필요하다
-      - run: npm install -g npm@latest
+      - run: npm install -g npm@latest && npm --version
       - run: pnpm install --frozen-lockfile
+
+      # changeset이 있으면 "chore: 버전 올림" PR을 열거나 갱신한다.
       # 버전 PR에도 CI가 돌아야 ruleset의 필수 체크를 통과하므로, 있으면 PAT(CHANGESETS_TOKEN)를 쓴다
       - uses: changesets/action@v1
+        id: changesets
         with:
           version: pnpm changeset version
-          publish: pnpm release
           commit: 'chore: 버전 올림'
           title: 'chore: 버전 올림'
         env:
           GITHUB_TOKEN: ${{ secrets.CHANGESETS_TOKEN || secrets.GITHUB_TOKEN }}
+
+      # changeset이 없고(=버전 PR이 머지된 뒤) 그 버전이 npm에 없으면 publish한다.
+      # 액션 안이 아니라 job 셸에서 직접 돌려야 OIDC 토큰 환경변수가 npm에 전달된다
+      - if: steps.changesets.outputs.hasChangesets == 'false'
+        run: pnpm release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
