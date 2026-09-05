@@ -26,6 +26,7 @@ jobs:
       # npm trusted publishing(OIDC)은 npm 11.5 이상이 필요하다
       - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
+      # 버전 PR에도 CI가 돌아야 ruleset의 필수 체크를 통과하므로, 있으면 PAT(CHANGESETS_TOKEN)를 쓴다
       - uses: changesets/action@v1
         with:
           version: pnpm changeset version
@@ -33,4 +34,4 @@ jobs:
           commit: 'chore: 버전 올림'
           title: 'chore: 버전 올림'
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CHANGESETS_TOKEN || secrets.GITHUB_TOKEN }}
