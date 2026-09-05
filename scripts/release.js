@@ -24,7 +24,7 @@ function output(command, args) {
 
 /** CHANGELOG.md에서 이 버전의 절만 잘라 낸다. 없으면 빈 문자열. */
 function changelogSection() {
-  let changelog = '';
+  let changelog;
   try {
     changelog = readFileSync('CHANGELOG.md', 'utf8');
   } catch {
