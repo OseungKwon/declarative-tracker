@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineEvents } from '../../core/define';
 import { createTracker } from '../../core/tracker';
 import type { TrackingEvent } from '../../core/types';
-import { mount } from '../mount';
+import { observe } from '../observe';
 import { submitTrigger } from './submit';
 
 const events = defineEvents({
@@ -21,7 +21,7 @@ function setup(html: string) {
   document.body.innerHTML = html;
   send = vi.fn<Send>();
   const tracker = createTracker({ events, adapters: [{ name: 'log', send }] });
-  unmount = mount(tracker, { triggers: [submitTrigger()] });
+  unmount = observe(tracker, { triggers: [submitTrigger()] });
 }
 
 const submit = (form: Element | null) => {

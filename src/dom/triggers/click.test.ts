@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineEvents } from '../../core/define';
 import { createTracker } from '../../core/tracker';
 import type { TrackingEvent } from '../../core/types';
-import { mount } from '../mount';
+import { observe } from '../observe';
 import { clickTrigger } from './click';
 
 const events = defineEvents({
@@ -21,7 +21,7 @@ function setup(html: string, trigger = clickTrigger()) {
   document.body.innerHTML = html;
   send = vi.fn<Send>();
   const tracker = createTracker({ events, adapters: [{ name: 'log', send }] });
-  unmount = mount(tracker, { triggers: [trigger] });
+  unmount = observe(tracker, { triggers: [trigger] });
 }
 
 beforeEach(() => {
@@ -96,7 +96,7 @@ describe('clickTrigger', () => {
     const root = document.getElementById('root');
     if (!root) throw new Error('no root');
     send = vi.fn<Send>();
-    unmount = mount(createTracker({ events, adapters: [{ name: 'log', send }] }), {
+    unmount = observe(createTracker({ events, adapters: [{ name: 'log', send }] }), {
       root,
       triggers: [clickTrigger()],
     });

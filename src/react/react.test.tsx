@@ -54,10 +54,10 @@ describe('TrackingProvider', () => {
     expect(send).toHaveBeenCalledOnce();
   });
 
-  it('mount={false}면 DOM을 감시하지 않는다', async () => {
+  it('observe={false}면 DOM을 감시하지 않는다', async () => {
     const { tracker, send } = makeTracker();
     render(
-      <TrackingProvider tracker={tracker} mount={false}>
+      <TrackingProvider tracker={tracker} observe={false}>
         <div data-track="page-view" />
       </TrackingProvider>,
     );
@@ -66,10 +66,10 @@ describe('TrackingProvider', () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it('mountOptions를 mount에 넘긴다', async () => {
+  it('observeOptions를 mount에 넘긴다', async () => {
     const { tracker, send } = makeTracker();
     render(
-      <TrackingProvider tracker={tracker} mountOptions={{ prefix: 'data-analytics' }}>
+      <TrackingProvider tracker={tracker} observeOptions={{ prefix: 'data-analytics' }}>
         <div data-analytics="page-view" data-analytics-slug="a" />
         <div data-track="page-view" />
       </TrackingProvider>,
@@ -92,7 +92,7 @@ describe('useTracker', () => {
     const { tracker } = makeTracker();
     const { result } = renderHook(() => useTracker(), {
       wrapper: ({ children }) => (
-        <TrackingProvider tracker={tracker} mount={false}>
+        <TrackingProvider tracker={tracker} observe={false}>
           {children}
         </TrackingProvider>
       ),
@@ -104,7 +104,7 @@ describe('useTracker', () => {
 describe('useFire', () => {
   const { tracker, send } = makeTracker();
   const wrapper = ({ children }: { children: React.ReactNode }) => (
-    <TrackingProvider tracker={tracker} mount={false}>
+    <TrackingProvider tracker={tracker} observe={false}>
       {children}
     </TrackingProvider>
   );
@@ -137,7 +137,7 @@ describe('createTrackingHooks', () => {
     const { tracker, send } = makeTracker();
     const hooks = createTrackingHooks<typeof events>();
     const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <TrackingProvider tracker={tracker} mount={false}>
+      <TrackingProvider tracker={tracker} observe={false}>
         {children}
       </TrackingProvider>
     );

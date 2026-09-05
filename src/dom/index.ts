@@ -1,9 +1,9 @@
 export { trackAttrs } from './attrs';
 export type { TrackAttrs } from './attrs';
-export { mount } from './mount';
+export { observe } from './observe';
 export { bindParams, boundParams } from './params';
 export type { BoundParams } from './params';
-export type { MountOptions, Unmount } from './mount';
+export type { ObserveOptions, Unobserve } from './observe';
 export { DEFAULT_PREFIX, resolveElement } from './resolve';
 export type { ResolveOptions, ResolvedElement } from './resolve';
 export { defineTrigger } from './trigger';

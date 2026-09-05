@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { defineEvents } from '../core/define';
 import { createTracker } from '../core/tracker';
-import { mount } from './mount';
+import { observe } from './observe';
 import type { Trigger, TriggerContext, TriggerInstance } from './trigger';
 
 const events = defineEvents({
@@ -54,7 +54,7 @@ describe('mount', () => {
   it('triggers를 주지 않으면 내장 트리거 4개를 쓴다', () => {
     document.body.innerHTML = `<button data-track="banner-click"></button>`;
     const send = vi.fn();
-    unmount = mount(createTracker({ events, adapters: [{ name: 'log', send }] }));
+    unmount = observe(createTracker({ events, adapters: [{ name: 'log', send }] }));
 
     document.querySelector('button')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
@@ -65,7 +65,7 @@ describe('mount', () => {
     vi.stubGlobal('document', undefined);
     const tracker = createTracker({ events });
     expect(() => {
-      mount(tracker)();
+      observe(tracker)();
     }).not.toThrow();
     vi.unstubAllGlobals();
   });
@@ -76,7 +76,7 @@ describe('mount', () => {
       <div data-track="hero-view"></div>`;
     const click = fakeTrigger('click');
     const impression = fakeTrigger('impression');
-    unmount = mount(createTracker({ events }), { triggers: [click, impression] });
+    unmount = observe(createTracker({ events }), { triggers: [click, impression] });
 
     expect(click.attach).toHaveBeenCalledWith(document.querySelector('button'), undefined);
     expect(impression.attach).toHaveBeenCalledWith(document.querySelector('div'), {
@@ -89,7 +89,7 @@ describe('mount', () => {
     const click = fakeTrigger('click');
     const root = document.querySelector('section');
     if (!root) throw new Error('no root');
-    unmount = mount(createTracker({ events }), { root, triggers: [click] });
+    unmount = observe(createTracker({ events }), { root, triggers: [click] });
 
     expect(click.attach).toHaveBeenCalledWith(root, undefined);
   });
@@ -100,7 +100,7 @@ describe('mount', () => {
       <div data-track="nope"></div>`;
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const click = fakeTrigger('click');
-    unmount = mount(createTracker({ events, debug: true }), { triggers: [click] });
+    unmount = observe(createTracker({ events, debug: true }), { triggers: [click] });
 
     expect(click.attach).not.toHaveBeenCalled();
     expect(warn).toHaveBeenCalledOnce();
@@ -112,7 +112,7 @@ describe('mount', () => {
       <div data-track="hero-view"></div>
       <div data-track="hero-view"></div>`;
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    unmount = mount(createTracker({ events, debug: true }), { triggers: [] });
+    unmount = observe(createTracker({ events, debug: true }), { triggers: [] });
 
     expect(warn).toHaveBeenCalledOnce();
     expect(warn.mock.calls[0]?.[0]).toContain('"impression"');
@@ -120,13 +120,15 @@ describe('mount', () => {
 
   it('트리거 이름이 겹치면 throw한다', () => {
     expect(() =>
-      mount(createTracker({ events }), { triggers: [fakeTrigger('click'), fakeTrigger('click')] }),
+      observe(createTracker({ events }), {
+        triggers: [fakeTrigger('click'), fakeTrigger('click')],
+      }),
     ).toThrow('duplicate trigger name "click"');
   });
 
   it('나중에 추가된 서브트리의 요소를 붙인다', async () => {
     const click = fakeTrigger('click');
-    unmount = mount(createTracker({ events }), { triggers: [click] });
+    unmount = observe(createTracker({ events }), { triggers: [click] });
 
     const wrapper = document.createElement('div');
     wrapper.innerHTML = `<span><button data-track="banner-click"></button></span>`;
@@ -140,7 +142,7 @@ describe('mount', () => {
   it('제거된 요소는 뗀다', async () => {
     document.body.innerHTML = `<div id="w"><button data-track="banner-click"></button></div>`;
     const click = fakeTrigger('click');
-    unmount = mount(createTracker({ events }), { triggers: [click] });
+    unmount = observe(createTracker({ events }), { triggers: [click] });
     const button = document.querySelector('button');
 
     document.getElementById('w')?.remove();
@@ -154,7 +156,7 @@ describe('mount', () => {
       <div id="a"><button data-track="banner-click"></button></div>
       <div id="b"></div>`;
     const click = fakeTrigger('click');
-    unmount = mount(createTracker({ events }), { triggers: [click] });
+    unmount = observe(createTracker({ events }), { triggers: [click] });
     const button = document.querySelector('button');
     if (!button) throw new Error('no button');
 
@@ -169,7 +171,7 @@ describe('mount', () => {
     document.body.innerHTML = `<div data-track="banner-click"></div>`;
     const click = fakeTrigger('click');
     const impression = fakeTrigger('impression');
-    unmount = mount(createTracker({ events }), { triggers: [click, impression] });
+    unmount = observe(createTracker({ events }), { triggers: [click, impression] });
     const el = document.querySelector('div');
     if (!el) throw new Error('no el');
 
@@ -183,7 +185,7 @@ describe('mount', () => {
   it('data-track 값이 같으면 건드리지 않는다', async () => {
     document.body.innerHTML = `<div data-track="banner-click"></div>`;
     const click = fakeTrigger('click');
-    unmount = mount(createTracker({ events }), { triggers: [click] });
+    unmount = observe(createTracker({ events }), { triggers: [click] });
 
     document.querySelector('div')?.setAttribute('data-track', 'banner-click');
     await flush();
@@ -195,7 +197,7 @@ describe('mount', () => {
   it('data-track 속성이 사라지면 뗀다', async () => {
     document.body.innerHTML = `<div data-track="banner-click"></div>`;
     const click = fakeTrigger('click');
-    unmount = mount(createTracker({ events }), { triggers: [click] });
+    unmount = observe(createTracker({ events }), { triggers: [click] });
     const el = document.querySelector('div');
 
     el?.removeAttribute('data-track');
@@ -209,7 +211,7 @@ describe('mount', () => {
       <div data-analytics="banner-click"></div>
       <div data-track="banner-click"></div>`;
     const click = fakeTrigger('click');
-    unmount = mount(createTracker({ events }), { prefix: 'data-analytics', triggers: [click] });
+    unmount = observe(createTracker({ events }), { prefix: 'data-analytics', triggers: [click] });
 
     expect(click.attach).toHaveBeenCalledOnce();
     expect(click.attach).toHaveBeenCalledWith(
@@ -220,7 +222,7 @@ describe('mount', () => {
 
   it('unmount하면 트리거를 destroy하고 감시를 멈춘다', async () => {
     const click = fakeTrigger('click');
-    unmount = mount(createTracker({ events }), { triggers: [click] });
+    unmount = observe(createTracker({ events }), { triggers: [click] });
 
     unmount();
     unmount();
@@ -240,7 +242,7 @@ describe('mount', () => {
       const send = vi.fn();
       const tracker = createTracker({ events, adapters: [{ name: 'log', send }] });
       const click = fakeTrigger('click');
-      unmount = mount(tracker, { triggers: [click] });
+      unmount = observe(tracker, { triggers: [click] });
       const button = document.querySelector('button');
       if (!button) throw new Error('no button');
 
@@ -261,7 +263,7 @@ describe('mount', () => {
       const send = vi.fn();
       const tracker = createTracker({ events, adapters: [{ name: 'log', send }] });
       const click = fakeTrigger('click');
-      unmount = mount(tracker, { triggers: [click, fakeTrigger('impression')] });
+      unmount = observe(tracker, { triggers: [click, fakeTrigger('impression')] });
       const [hero, nope, plain] = document.querySelectorAll('div');
 
       expect(click.ctx?.fire(hero as Element)).toBe(false);
@@ -273,7 +275,7 @@ describe('mount', () => {
     it('root, prefix, logger를 트리거에 넘긴다', () => {
       const tracker = createTracker({ events });
       const click = fakeTrigger('click');
-      unmount = mount(tracker, { triggers: [click] });
+      unmount = observe(tracker, { triggers: [click] });
 
       expect(click.ctx?.root).toBe(document.body);
       expect(click.ctx?.prefix).toBe('data-track');

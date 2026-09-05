@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineEvents } from '../../core/define';
 import { createTracker } from '../../core/tracker';
 import type { TrackingEvent } from '../../core/types';
-import { mount } from '../mount';
+import { observe } from '../observe';
 import { mountTrigger } from './mount';
 
 const events = defineEvents({
@@ -20,7 +20,7 @@ let send: ReturnType<typeof vi.fn<Send>>;
 beforeEach(() => {
   document.body.innerHTML = '';
   send = vi.fn<Send>();
-  unmount = mount(createTracker({ events, adapters: [{ name: 'log', send }] }), {
+  unmount = observe(createTracker({ events, adapters: [{ name: 'log', send }] }), {
     triggers: [mountTrigger()],
   });
 });

@@ -1,5 +1,5 @@
 import { createTracker } from 'declarative-tracker';
-import { mount } from 'declarative-tracker/dom';
+import { observe } from 'declarative-tracker/dom';
 
 import { appsflyer, ga4 } from './adapters';
 import { events } from './events';
@@ -12,7 +12,7 @@ const tracker = createTracker({
 });
 
 // data-track 요소를 찾아 click / mount / impression / scroll-depth 트리거를 붙인다
-mount(tracker);
+observe(tracker);
 
 // DOM 트리거가 없는 이벤트는 직접 fire 한다
 const form = document.getElementById('newsletter') as HTMLFormElement;

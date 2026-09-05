@@ -4,18 +4,18 @@ import { DEFAULT_PREFIX, resolveElement } from './resolve';
 import type { Trigger, TriggerInstance } from './trigger';
 import { defaultTriggers } from './triggers';
 
-export interface MountOptions {
+export interface ObserveOptions {
   root?: Element;
   prefix?: string;
   triggers?: Trigger[];
 }
 
-export type Unmount = () => void;
+export type Unobserve = () => void;
 
-const noop: Unmount = () => undefined;
+const noop: Unobserve = () => undefined;
 
 /** root 아래의 data-track 요소를 찾아 트리거에 연결하고, DOM 변경을 계속 감시한다. */
-export function mount(tracker: Tracker, options: MountOptions = {}): Unmount {
+export function observe(tracker: Tracker, options: ObserveOptions = {}): Unobserve {
   if (typeof document === 'undefined') return noop;
 
   const { root = document.body, prefix = DEFAULT_PREFIX, triggers = defaultTriggers() } = options;

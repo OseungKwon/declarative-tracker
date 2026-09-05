@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineEvents } from '../../core/define';
 import { createTracker } from '../../core/tracker';
 import type { TrackingEvent } from '../../core/types';
-import { mount } from '../mount';
+import { observe } from '../observe';
 import { scrollDepthTrigger } from './scroll-depth';
 
 const events = defineEvents({
@@ -56,7 +56,7 @@ function scrollTo(scrollY: number) {
 function setup(html: string, debug = false) {
   document.body.innerHTML = html;
   send = vi.fn<Send>();
-  unmount = mount(createTracker({ events, adapters: [{ name: 'log', send }], debug }), {
+  unmount = observe(createTracker({ events, adapters: [{ name: 'log', send }], debug }), {
     triggers: [scrollDepthTrigger()],
   });
   vi.advanceTimersByTime(16);
@@ -198,7 +198,7 @@ describe('scrollDepthTrigger', () => {
       feed.innerHTML = `<div data-track="feed"></div>`;
       document.body.append(feed);
       send = vi.fn<Send>();
-      unmount = mount(createTracker({ events, adapters: [{ name: 'log', send }] }), {
+      unmount = observe(createTracker({ events, adapters: [{ name: 'log', send }] }), {
         triggers: [scrollDepthTrigger()],
       });
       vi.advanceTimersByTime(16);
