@@ -64,6 +64,12 @@ function setup(html: string) {
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
+/** document.visibilityState를 바꾸고 visibilitychange를 보낸다. */
+function setVisibility(state: DocumentVisibilityState) {
+  Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
+  document.dispatchEvent(new Event('visibilitychange'));
+}
+
 beforeEach(() => {
   instances.length = 0;
   vi.stubGlobal('IntersectionObserver', FakeIO);
@@ -72,6 +78,7 @@ beforeEach(() => {
 afterEach(() => {
   unmount?.();
   unmount = undefined;
+  setVisibility('visible');
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -154,6 +161,36 @@ describe('impressionTrigger', () => {
     instances[0]?.see(el);
     vi.advanceTimersByTime(100);
     expect(send).toHaveBeenCalledTimes(2);
+  });
+
+  it('탭이 가려진 동안은 보이지 않은 것으로 치고, 다시 보이면 관찰을 새로 건다', () => {
+    setup(`<div data-track="hero"></div>`);
+    const el = document.querySelector('div');
+    if (!el) throw new Error('no el');
+
+    setVisibility('hidden');
+    instances[0]?.see(el);
+    expect(send).not.toHaveBeenCalled();
+
+    setVisibility('visible');
+    expect(instances[0]?.unobserve).toHaveBeenCalledWith(el);
+    expect(instances[0]?.observe).toHaveBeenCalledTimes(2);
+    instances[0]?.see(el);
+    expect(send).toHaveBeenCalledOnce();
+  });
+
+  it('minVisibleMs 대기 중에 탭이 가려지면 타이머를 취소한다', () => {
+    vi.useFakeTimers();
+    setup(`<div data-track="card"></div>`);
+    const el = document.querySelector('div');
+    if (!el) throw new Error('no el');
+
+    instances[0]?.see(el);
+    vi.advanceTimersByTime(500);
+    setVisibility('hidden');
+    vi.advanceTimersByTime(1000);
+
+    expect(send).not.toHaveBeenCalled();
   });
 
   it('요소가 제거되면 타이머를 취소하고 관찰을 멈춘다', async () => {

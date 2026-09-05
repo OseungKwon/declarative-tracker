@@ -58,10 +58,23 @@ export function impressionTrigger() {
         return true;
       };
 
+      /** 탭이 가려지면 대기 중인 타이머를 모두 취소하고, 다시 보이면 IO가 현재 상태를 새로 알리도록 다시 건다. */
+      const onVisibilityChange = () => {
+        if (document.visibilityState === 'hidden') {
+          for (const state of watched.values()) clearTimer(state);
+          return;
+        }
+        for (const [el, state] of watched) {
+          state.observer.unobserve(el);
+          state.observer.observe(el);
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibilityChange);
+
       const handle = (entry: IntersectionObserverEntry) => {
         const el = entry.target;
         const state = watched.get(el);
-        if (!state) return;
+        if (!state || document.visibilityState === 'hidden') return;
         if (!state.adjusted) {
           state.adjusted = true;
           if (reobserveIfTall(entry, state)) return;
@@ -103,6 +116,7 @@ export function impressionTrigger() {
           watched.delete(el);
         },
         destroy() {
+          document.removeEventListener('visibilitychange', onVisibilityChange);
           for (const state of watched.values()) clearTimer(state);
           watched.clear();
           pool.disconnectAll();
