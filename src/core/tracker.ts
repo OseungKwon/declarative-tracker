@@ -1,7 +1,7 @@
 import type { Adapter } from './adapter';
 import { createAdapterRegistry } from './adapter-registry';
 import type { ErrorHandler } from './errors';
-import { createLogger, type Logger } from './logger';
+import { createLogger, type Logger, type LoggerOption } from './logger';
 import type {
   EventKeys,
   EventMap,
@@ -24,6 +24,7 @@ export interface TrackerOptions<M extends EventMap> {
   middleware?: Middleware[];
   onError?: ErrorHandler;
   debug?: boolean;
+  logger?: LoggerOption;
 }
 
 export interface FireMeta {
@@ -55,7 +56,7 @@ export interface Tracker<M extends EventMap = EventMap> {
 /** 이벤트 맵과 어댑터로 트래커를 만든다. */
 export function createTracker<M extends EventMap>(options: TrackerOptions<M>): Tracker<M> {
   const { events, adapters = [], middleware = [], debug = false } = options;
-  const log = createLogger(debug);
+  const log = createLogger(debug, options.logger);
   const onError: ErrorHandler =
     options.onError ??
     ((error, info) => {

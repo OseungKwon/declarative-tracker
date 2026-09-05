@@ -144,6 +144,55 @@ describe('createTracker', () => {
       createTracker({ events, debug: true }).logger.warn('loud');
       expect(warn).toHaveBeenCalledOnce();
     });
+
+    it('logger 옵션을 주면 콘솔 대신 그리로 보낸다', () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const logger = { warn: vi.fn(), error: vi.fn() };
+      const tracker = createTracker({ events, debug: true, logger });
+
+      tracker.logger.warn('w', 1);
+      tracker.logger.error('e', 2);
+
+      expect(logger.warn).toHaveBeenCalledWith('w', 1);
+      expect(logger.error).toHaveBeenCalledWith('e', 2);
+      expect(consoleWarn).not.toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+    });
+
+    it('logger를 줘도 debug가 꺼져 있으면 warn은 가지 않는다', () => {
+      const logger = { warn: vi.fn(), error: vi.fn() };
+      createTracker({ events, logger }).logger.warn('quiet');
+      expect(logger.warn).not.toHaveBeenCalled();
+    });
+
+    it('어댑터 에러의 기본 onError는 logger.error로 간다', () => {
+      const logger = { warn: vi.fn(), error: vi.fn() };
+      const failing = mockAdapter('ga4', {
+        send: () => {
+          throw new Error('boom');
+        },
+      });
+      createTracker({ events, adapters: [failing], logger }).fire('banner-click', {
+        bannerId: '1',
+      });
+      expect(logger.error).toHaveBeenCalledWith(
+        expect.stringContaining('send failed'),
+        expect.any(Error),
+      );
+    });
+
+    it('logger: false면 아무것도 찍지 않는다', () => {
+      const consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const tracker = createTracker({ events, debug: true, logger: false });
+
+      tracker.logger.warn('w');
+      tracker.logger.error('e');
+
+      expect(consoleWarn).not.toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+    });
   });
 
   describe('context', () => {
