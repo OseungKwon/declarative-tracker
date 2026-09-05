@@ -1,5 +1,5 @@
-export { trackAttrs } from './attrs';
-export type { TrackAttrs } from './attrs';
+export { createTrackAttrs, trackAttrs } from './attrs';
+export type { TrackAttrs, TrackAttrsFor } from './attrs';
 export { observe } from './observe';
 export { bindParams, boundParams } from './params';
 export type { BoundParams } from './params';
