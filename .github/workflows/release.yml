@@ -44,3 +44,4 @@ jobs:
         run: pnpm release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_LOGLEVEL: verbose
