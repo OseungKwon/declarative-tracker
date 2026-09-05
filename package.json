@@ -98,7 +98,8 @@
     "check": "pnpm typecheck && pnpm lint && pnpm format:check && pnpm test",
     "prepublishOnly": "pnpm build && pnpm validate",
     "changeset": "changeset",
-    "release": "changeset publish"
+    "release": "changeset publish",
+    "check:release": "node scripts/check-release.js"
   },
   "peerDependencies": {
     "react": "^18.2.0 || ^19.0.0"
