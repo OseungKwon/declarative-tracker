@@ -59,7 +59,7 @@ async function onCheckout() {
 주문 생성과 화면 이동을 처리하는 코드 사이에 분석 도구별 호출이 섞여 있습니다. 이 구조에서는 다음 문제가 생깁니다.
 
 - `cart.total`이 벤더별 필드 이름에 맞춰 세 번 작성되어 있습니다. 값의 형식이 바뀌면 세 호출을 각각 수정해야 합니다.
-- 벤더 SDK 호출에서 발생한 예외가 결제 흐름에 전달될 수 있습니다. 이를 막으려면 각 호출을 별도의 `try`로 감싸야 합니다.
+- 벤더 SDK가 예외를 던지거나 광고 차단기에 막히면 결제 흐름이 깨질 수 있습니다. 이를 막으려면 각 호출을 별도의 `try`로 감싸야 합니다.
 - 벤더를 추가하거나 이벤트 시점을 "요청 전"에서 "요청 후"로 옮기려면 결제 코드를 수정하고 다시 리뷰·배포해야 합니다.
 - `onCheckout`의 테스트는 주문 흐름을 검증하기 전에 `gtag`, `AF`, `amplitude`를 먼저 모킹해야 합니다.
 
@@ -248,8 +248,8 @@ const tracker = createTracker({
 ```tsx
 const { useTrackProps } = createTrackingHooks<typeof events>();
 
-function ProductCard({ product, index }) {
-  const track = useTrackProps('product-click', { productId: product.id, position: index });
+function ProductCard({ product }) {
+  const track = useTrackProps('product-click', { productId: product.id });
   return (
     <a {...track} href={product.url}>
       {product.name}
@@ -269,11 +269,11 @@ npm install declarative-tracker
 
 진입점은 세 가지입니다.
 
-| 임포트                      | 내용                                                            | 환경                     |
-| --------------------------- | --------------------------------------------------------------- | ------------------------ |
-| `declarative-tracker`       | `defineEvents`, `defineEvent`, `createTracker`, `Adapter`, 타입 | 어디서나 (DOM 접근 없음) |
-| `declarative-tracker/dom`   | `observe`, 트리거, `trackAttrs`, `bindParams`, `resolveElement` | 브라우저                 |
-| `declarative-tracker/react` | `TrackingProvider`, 훅, `trackAttrs` 재내보내기                 | React 18.2+ / 19         |
+| 임포트                      | 내용                                                                                                                          | 환경                     |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `declarative-tracker`       | `defineEvents`, `defineEvent`, `createTracker`, `Adapter`, 타입                                                               | 어디서나 (DOM 접근 없음) |
+| `declarative-tracker/dom`   | `observe`, 내장 트리거, `delegatedTrigger`, `defineTrigger`, `trackAttrs`, `createTrackAttrs`, `bindParams`, `resolveElement` | 브라우저                 |
+| `declarative-tracker/react` | `TrackingProvider`, 훅, `trackAttrs`와 `createTrackAttrs` 재내보내기                                                          | React 18.2+ / 19         |
 
 ESM과 CJS 빌드가 타입 선언과 함께 제공됩니다. React는 선택적 peer dependency입니다.
 
@@ -383,8 +383,9 @@ const events = defineEvents({
 });
 ```
 
-- `debug: true`이면 `fire()`를 호출할 때마다 병합된 params를 스키마로 검증하고, 문제가 있으면 경고를 남깁니다. 검증 결과는 이벤트 전송을 막거나 값을 변형하지 않습니다.
+- `debug: true`이면 `fire()`를 호출할 때마다 병합된 params를 스키마로 검증하고, 문제가 있으면 해당 이슈 목록과 함께 경고를 남깁니다. 이벤트는 그대로 전송되며, 검증이 전송을 막거나 값을 변형하지는 않습니다.
 - `debug`가 꺼져 있으면 스키마는 호출되지 않으므로 프로덕션에서는 비용이 없습니다.
+- 검증은 동기적으로 실행됩니다. `validate`가 Promise를 반환하는 스키마는 건너뛰고 이벤트마다 한 번만 경고를 남기므로, 동기 스키마를 사용합니다.
 - `defineEvent`는 params 타입을 스키마의 출력에서 가져오므로, `schema`가 `params: {} as ...`를 대신합니다. `defineEvents<Events>`를 쓸 때는 스키마의 출력이 인터페이스와 일치해야 합니다.
 - 이 라이브러리는 어떤 스키마 라이브러리에도 의존하지 않습니다. 스펙이 정의한 `~standard` 속성만 읽습니다.
 
@@ -405,15 +406,15 @@ interface TrackingEvent<P> {
 
 ## 마크업
 
-| 속성                            | 의미                                                                                      |
-| ------------------------------- | ----------------------------------------------------------------------------------------- |
-| `data-track="key"`              | 이벤트 키입니다. 요소를 추적 대상으로 표시합니다.                                         |
-| `data-track-<name>="value"`     | param 하나입니다. `data-track-product-id`는 `productId`가 됩니다. 값은 문자열입니다.      |
-| `data-track-params='{"a":1}'`   | JSON 객체 형태의 params입니다. 문자열이 아닌 값이나 여러 params를 한 번에 넣을 때 씁니다. |
-| `data-track-ctx-<name>="v"`     | 조상 요소에 컨텍스트를 지정합니다. 추적 대상인 모든 자손의 params에 병합됩니다.           |
-| `data-track-ctx='{"list":"x"}'` | JSON 형태의 조상 컨텍스트입니다.                                                          |
+| 속성                            | 의미                                                                                                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `data-track="key"`              | 이벤트 키입니다. 요소를 추적 대상으로 표시합니다.                                                                      |
+| `data-track-<name>="value"`     | param 하나입니다. `data-track-product-id`는 `productId`가 됩니다. 값은 문자열입니다.                                   |
+| `data-track-params='{"a":1}'`   | JSON 객체 형태의 params입니다. 문자열이 아닌 값이나 여러 params를 한 번에 넣을 때 씁니다.                              |
+| `data-track-ctx-<name>="v"`     | 요소 자신이나 임의의 조상에 지정합니다. 추적 대상인 모든 자손의 params에 병합됩니다. 목록 이름이나 섹션 구분에 씁니다. |
+| `data-track-ctx='{"list":"x"}'` | JSON 형태의 컨텍스트입니다. 배치 규칙은 같습니다.                                                                      |
 
-같은 이름의 param이 여러 곳에 있으면 뒤에서 읽은 값이 앞의 값을 덮어씁니다. 적용 순서는 조상 ctx(가장 바깥쪽부터) → 개별 속성 → JSON params → `bindParams()`입니다.
+같은 이름의 param이 여러 곳에 있으면 뒤에서 읽은 값이 앞의 값을 덮어씁니다. 적용 순서는 ctx(가장 바깥쪽 조상부터 요소 자신까지) → 개별 속성 → JSON params → `bindParams()`입니다. 같은 요소 안에서는 JSON `data-track-ctx`가 `data-track-ctx-<name>`보다 우선합니다.
 
 ```html
 <section data-track-ctx-list="featured">
@@ -423,7 +424,7 @@ interface TrackingEvent<P> {
 <!-- 두 클릭 모두 { list: 'featured', productId: '...' }를 보냅니다 -->
 ```
 
-`data-track` 접두사는 설정할 수 있습니다. `observe(tracker, { prefix: 'data-analytics' })`로 지정하면 모든 속성이 `data-analytics-*`가 됩니다.
+`data-track` 접두사는 설정할 수 있습니다. `observe(tracker, { prefix: 'data-analytics' })`로 지정하면 `data-track-*` 대신 `data-analytics-*`를 읽습니다. 속성을 만들어 주는 헬퍼는 자체적으로 `data-track`을 기본값으로 쓰므로, `createTrackAttrs(prefix)`, `trackAttrs(key, params, prefix)`, `useTrackProps(key, params, { prefix })`에도 같은 접두사를 전달합니다.
 
 ### 직렬화 없이 params 전달하기
 
@@ -446,24 +447,37 @@ observe(tracker); // 모든 내장 트리거
 observe(tracker, { triggers: [clickTrigger({ phase: 'bubble' }), impressionTrigger()] });
 ```
 
-| 트리거           | 전송 시점                                                 | 옵션                                              |
-| ---------------- | --------------------------------------------------------- | ------------------------------------------------- |
-| `'click'`        | 요소나 그 자손이 클릭될 때                                | 팩토리: `phase: 'capture' \| 'bubble'`            |
-| `'submit'`       | 요소가 제출되는 폼이거나 그 폼을 포함할 때                | 팩토리: `phase`                                   |
-| `'mount'`        | 요소가 DOM에 들어올 때                                    | —                                                 |
-| `'impression'`   | 요소가 뷰포트에 보였을 때                                 | `threshold`, `rootMargin`, `minVisibleMs`, `once` |
-| `'scroll-depth'` | 스크롤 깊이가 마일스톤을 넘을 때                          | `milestones` (필수), `container`                  |
-| `'manual'`       | 자동으로는 보내지 않습니다. `tracker.fire()`를 사용합니다 | —                                                 |
+| 트리거           | 전송 시점                                                 | 옵션                                                                         |
+| ---------------- | --------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `'click'`        | 요소나 그 자손이 클릭될 때                                | 팩토리: `phase: 'capture' \| 'bubble'`                                       |
+| `'submit'`       | 요소가 제출되는 폼이거나 그 폼을 포함할 때                | 팩토리: `phase`                                                              |
+| `'mount'`        | 요소가 DOM에 들어올 때                                    | —                                                                            |
+| `'impression'`   | 요소가 뷰포트에 보였을 때                                 | `threshold` (0.5), `rootMargin` (`'0px'`), `minVisibleMs` (0), `once` (true) |
+| `'scroll-depth'` | 스크롤 깊이가 마일스톤을 넘을 때                          | `milestones` (필수), `container`                                             |
+| `'manual'`       | 자동으로는 보내지 않습니다. `tracker.fire()`를 사용합니다 | —                                                                            |
 
 내장 트리거에 대한 참고 사항입니다.
 
-- **click / submit**은 루트에 위임 리스너 하나를 등록하며 기본값은 캡처 단계입니다. 따라서 앱 코드가 `stopPropagation()`을 호출해도 이벤트를 감지할 수 있습니다. 버블 단계에서 취소되지 않은 상호작용만 추적하려면 팩토리에 `phase: 'bubble'`을 전달합니다.
-- **impression**은 `threshold`와 `rootMargin` 조합마다 `IntersectionObserver` 하나를 공유합니다. 뷰포트보다 큰 요소는 도달 가능한 노출 비율을 기준으로 다시 관찰합니다. `minVisibleMs`를 지정하면 해당 시간 동안 연속으로 노출되어야 하며, 그 전에 뷰포트를 벗어나면 타이머를 취소합니다. 탭이 숨겨진 동안에는 노출 시간을 집계하지 않고, 탭이 다시 표시되면 관찰을 재시작합니다. `once: false`이면 요소가 뷰포트에 진입할 때마다 전송합니다.
-- **scroll-depth**는 `window` 또는 `container` 셀렉터와 일치하는 요소의 스크롤을 관찰합니다. 마일스톤은 `0..1` 사이의 비율로 지정하며, 요소별로 각 마일스톤에 처음 도달했을 때 params에 `scrollDepth`와 `scrollDepthPercent`를 추가해 전송합니다. 스크롤 영역이 없는 짧은 문서는 깊이 1을 즉시 전송합니다.
+- **click / submit**은 루트에 위임 리스너 하나를 등록하며 기본값은 캡처 단계입니다. 따라서 앱 코드가 `stopPropagation()`을 호출해도 상호작용을 감지할 수 있습니다. `stopPropagation()`을 호출한 상호작용을 제외하려면 팩토리에 `phase: 'bubble'`을 전달합니다. `preventDefault()`는 어느 단계에도 영향을 주지 않습니다.
+- **impression**은 `threshold`와 `rootMargin` 조합마다 `IntersectionObserver` 하나를 공유합니다. 뷰포트보다 큰 요소는 도달 가능한 노출 비율을 기준으로 다시 관찰합니다. `minVisibleMs`를 지정하면 해당 시간 동안 연속으로 노출되어야 하며, 그 전에 뷰포트를 벗어나면 타이머를 취소합니다. 탭이 숨겨진 동안에는 노출 시간을 집계하지 않고, 탭이 다시 표시되면 관찰을 재시작합니다. 따라서 백그라운드 탭에서 열린 페이지는 노출을 보고하지 않습니다. `once: false`이면 요소가 뷰포트에 진입할 때마다 전송합니다.
+- **scroll-depth**는 `window` 또는 `container` 셀렉터와 일치하는 요소의 스크롤을 관찰합니다. 셀렉터는 요소가 DOM에 연결될 때 `document.querySelector`로 찾습니다. 마일스톤은 `0..1` 사이의 비율로 지정하며, 범위를 벗어난 값은 잘라내고 중복을 제거한 뒤 정렬합니다. 요소별로 각 마일스톤에 처음 도달했을 때 params에 `scrollDepth`와 `scrollDepthPercent`를 추가해 전송하고, 마지막 마일스톤 이후에는 해당 요소의 관찰을 중단합니다. 스크롤 영역이 없는 짧은 문서는 깊이 1을 즉시 전송합니다. `milestones`가 비어 있거나 `container`와 일치하는 요소가 없으면 debug 모드에서 경고를 남기고 아무것도 연결하지 않습니다.
 
 ### 커스텀 트리거
 
-위임 방식의 DOM 이벤트는 `delegatedTrigger`로 정의합니다.
+트리거 이름은 `TriggerRegistry`를 기준으로 검사하므로, 먼저 이름(과 옵션 타입이 있다면 그것도)을 등록합니다. `tracking.ts`처럼 앱의 아무 모듈 파일에나 두면 됩니다.
+
+```ts
+import type { NoOptions } from 'declarative-tracker';
+
+declare module 'declarative-tracker' {
+  interface TriggerRegistry {
+    change: NoOptions;
+    hover: { delayMs?: number };
+  }
+}
+```
+
+그다음 위임 방식의 DOM 이벤트는 `delegatedTrigger` 한 줄로 정의합니다.
 
 ```ts
 import { delegatedTrigger } from 'declarative-tracker/dom';
@@ -489,17 +503,6 @@ const hoverTrigger = defineTrigger({
 });
 ```
 
-이벤트 정의에서 받아들일 수 있도록 이름(과 옵션 타입이 있다면 그것도)을 등록합니다.
-
-```ts
-declare module 'declarative-tracker' {
-  interface TriggerRegistry {
-    change: NoOptions;
-    hover: { delayMs?: number };
-  }
-}
-```
-
 트리거가 `fire(el, extra)`를 통해 자체 params를 추가한다면 `TriggerParamsRegistry`에도 해당 타입을 선언합니다. 각 이벤트 타입에 이 params를 따로 추가하지 않아도 타깃 함수에서 사용할 수 있습니다. `scroll-depth`의 `scrollDepthPercent`도 이 방식으로 제공됩니다.
 
 ```ts
@@ -510,7 +513,7 @@ declare module 'declarative-tracker' {
 }
 ```
 
-`setup`은 `observe()`마다 한 번 실행되며 `root`, `prefix`, `logger`, `fire(el, extraParams?)`를 받습니다. `attach`/`detach`는 요소마다 실행됩니다. 트리거는 _언제_ 보낼지만 결정하고, params를 읽고 전송하는 일은 `observe()`가 합니다.
+`setup`은 `observe()`마다 한 번 실행되며 `root`, `prefix`, `logger`, `fire(el, extraParams?)`를 받습니다. `attach(el, options)`와 `detach(el)`는 요소마다 실행되며, `options`는 해당 요소의 이벤트 정의에 있는 `options` 객체입니다. 요소의 이벤트가 다른 트리거를 가리키면 `fire`는 `false`를 반환하고 아무것도 보내지 않습니다. 트리거는 _언제_ 보낼지만 결정하고, params를 읽고 전송하는 일은 `observe()`가 합니다.
 
 ## 어댑터
 
@@ -560,7 +563,10 @@ const tracker = createTracker({
 });
 
 tracker.setContext({ userId: 'u1' }); // 병합됨
+tracker.getContext(); // 스냅샷
 tracker.clearContext();
+tracker.setAdapterEnabled('amplitude', false); // 알 수 없는 이름은 debug 경고와 함께 무시됨
+tracker.isAdapterEnabled('amplitude'); // false
 tracker.fire('newsletter-submit', { plan: 'pro' }); // params는 맵에 대해 타입 검사됨
 ```
 
@@ -569,7 +575,7 @@ tracker.fire('newsletter-submit', { plan: 'pro' }); // params는 맵에 대해 �
 트래커의 출력은 `warn`과 `error` 메서드를 가진 `Logger`를 거칩니다. 기본 로거는 메시지에 접두사를 붙여 `console`로 출력합니다.
 
 - `debug`는 경고를 만들지 여부를 결정합니다. 알 수 없는 키·어댑터·트리거, 그리고 `destroy()` 이후의 `fire()`는 이 옵션이 켜져 있을 때만 보고됩니다. 어댑터 오류는 항상 보고됩니다.
-- `logger`는 경고와 오류의 출력 대상을 정합니다. 직접 만든 로거를 전달하면 Sentry나 로그 드레인으로 보낼 수 있습니다. `false`를 전달하면 출력을 비활성화할 수 있습니다.
+- `logger`는 경고와 오류의 출력 대상을 정합니다. 직접 만든 로거를 전달하면 Sentry나 로그 드레인으로 보낼 수 있습니다. `false`를 전달하면 트래커 출력을 완전히 끌 수 있어 테스트에서 유용합니다.
 - `onError`를 지정하면 어댑터 오류에는 `onError`를 우선 사용합니다. 지정하지 않았을 때는 `logger.error`로 전달합니다.
 
 ### 미들웨어
@@ -619,7 +625,7 @@ function App() {
 }
 ```
 
-`TrackingProvider`는 트래커를 React 컨텍스트에 등록하고 effect에서 `observe()`를 호출합니다. `fire()`만 사용한다면 `observe={false}`를, 관찰 설정을 변경하려면 `observeOptions={{ prefix, triggers, root }}`를 전달합니다.
+`TrackingProvider`는 트래커를 React 컨텍스트에 등록하고 effect에서 `observe()`를 호출합니다. `fire()`만 사용한다면 `observe={false}`를, 관찰 설정을 변경하려면 `observeOptions={{ prefix, triggers, root }}`를 전달합니다. `observeOptions`는 관찰을 시작할 때 한 번만 읽으므로 이후에 바꿔도 반영되지 않습니다.
 
 ### 요소 표시하기
 
@@ -638,8 +644,8 @@ export const attrs = createTrackAttrs<typeof events>();
 `useTrackProps`는 params를 렌더마다 직렬화하지 않습니다. 대신 `data-track` 속성과 params 객체를 직접 바인딩하는 `ref`를 반환합니다.
 
 ```tsx
-function ProductButton({ product, index }) {
-  const props = useTrackProps('product-click', { productId: product.id, position: index });
+function ProductButton({ product }) {
+  const props = useTrackProps('product-click', { productId: product.id });
   return <button {...props}>Buy</button>;
 }
 ```
@@ -682,7 +688,7 @@ export function track(el: HTMLElement, [key, params]: [string, Params?]) {
   el.setAttribute('data-track', key);
   bindParams(el, params ?? null);
   return {
-    update: ([, next]) => bindParams(el, next ?? null),
+    update: ([, next]: [string, Params?]) => bindParams(el, next ?? null),
     destroy: () => bindParams(el, null),
   };
 }
@@ -693,7 +699,7 @@ export function track(el: HTMLElement, [key, params]: [string, Params?]) {
 
 ## SSR
 
-`declarative-tracker` 코어는 DOM에 접근하지 않으므로 서버에서도 import할 수 있습니다. `document`가 `undefined`인 환경에서 `observe()`를 호출하면 no-op을 반환합니다. 서버에서 렌더한 마크업은 클라이언트에서 `observe()`가 실행될 때 추적 대상으로 등록됩니다.
+`declarative-tracker` 코어는 DOM에 접근하지 않으므로 서버에서도 import할 수 있습니다. `document`가 `undefined`인 환경에서 `observe()`를 호출하면 no-op을 반환하므로 서버와 클라이언트가 공유하는 모듈에서 호출해도 문제없습니다. 서버에서 렌더한 마크업은 클라이언트에서 `observe()`가 실행될 때 추적 대상으로 등록됩니다.
 
 ## 예제
 
