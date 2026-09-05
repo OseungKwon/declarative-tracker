@@ -531,14 +531,23 @@ const tracker = createTracker({
   adapters: [ga4, amplitude],
   context: { app: 'web', locale: 'ko' }, // attached to every event as event.context
   middleware: [consent, dedupe],
-  onError: (error, info) => report(error, info), // default: console.error
+  onError: (error, info) => report(error, info), // default: logger.error
   debug: import.meta.env.DEV, // warnings about unknown keys, adapters, triggers
+  logger: { warn: log.warn, error: log.error }, // default: console with a prefix
 });
 
 tracker.setContext({ userId: 'u1' }); // merged
 tracker.clearContext();
 tracker.fire('newsletter-submit', { plan: 'pro' }); // params are type-checked against the map
 ```
+
+### Logging
+
+The tracker never writes to the console on its own. Everything goes through a `Logger` with two methods, `warn` and `error`, and the default one is a prefixed console.
+
+- `debug` decides whether warnings are produced at all. Unknown keys, adapters, or triggers, and `fire()` after `destroy()`, are only reported when it is on. Adapter errors are always reported.
+- `logger` decides where they go. Pass your own to route them to Sentry or a log drain; pass `false` to silence the tracker completely, which is handy in tests.
+- `onError` still takes precedence for adapter errors when you give one. Its default forwards to `logger.error`.
 
 ### Middleware
 
