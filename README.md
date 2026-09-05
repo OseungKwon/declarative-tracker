@@ -600,13 +600,17 @@ function App() {
 
 ### Marking elements
 
-`trackAttrs` returns plain `data-*` attributes, nothing else, so it never collides with your own `onClick` or `ref`:
+`trackAttrs` returns plain `data-*` attributes, nothing else, so it never collides with your own `onClick` or `ref`. Bind it to your event map once and every call is type-checked:
 
-```tsx
-<section {...trackAttrs('hero-view', { variant: 'a' })}>
+```ts
+export const attrs = createTrackAttrs<typeof events>();
 ```
 
-To type-check the key and params, pass the event map: `trackAttrs<typeof events, 'hero-view'>(...)`.
+```tsx
+<section {...attrs('hero-view', { variant: 'a' })}>
+```
+
+The unbound `trackAttrs(key, params?, prefix?)` works without a map, or with both generics spelled out: `trackAttrs<typeof events, 'hero-view'>(...)`. Both live in `declarative-tracker/dom` too, so the same helper works outside React.
 
 `useTrackProps` is the same idea without serializing params on every render. It returns the `data-track` attribute plus a `ref` that binds the params object directly:
 
